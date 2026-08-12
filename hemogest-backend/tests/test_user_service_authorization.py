@@ -135,6 +135,23 @@ def test_supervisor_nao_consegue_mudar_unidade_hospitalar_de_usuario(db: Session
     assert exc.value.status_code == 403
 
 
+def test_supervisor_pode_reenviar_a_propria_unidade_como_noop(db: Session) -> None:
+    # O frontend sempre reenvia unidade_hospitalar_id no payload (implícita
+    # para quem não é Admin Global) — não pode ser bloqueado quando o valor
+    # enviado é exatamente a unidade atual do usuário (nenhuma mudança real).
+    supervisor_role = _criar_role(db, RoleCodigo.SUPERVISOR)
+    tecnico_role = _criar_role(db, RoleCodigo.TECNICO)
+    unidade = _criar_unidade(db, "Hospital A")
+    supervisor = _criar_usuario(db, role=supervisor_role, unidade=unidade, email="sup@a.com")
+    tecnico = _criar_usuario(db, role=tecnico_role, unidade=unidade, email="tec@a.com")
+
+    atualizado = user_service.update_user(
+        db, tecnico.id, UsuarioUpdate(nome="Novo Nome", unidade_hospitalar_id=unidade.id), actor=supervisor
+    )
+    assert atualizado.nome == "Novo Nome"
+    assert atualizado.unidade_hospitalar_id == unidade.id
+
+
 def test_supervisor_nao_consegue_criar_usuario_admin_global_ou_em_outra_unidade(db: Session) -> None:
     admin_role = _criar_role(db, RoleCodigo.ADMIN_GLOBAL)
     supervisor_role = _criar_role(db, RoleCodigo.SUPERVISOR)

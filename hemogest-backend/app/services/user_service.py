@@ -115,7 +115,10 @@ def update_user(db: Session, user_id: uuid.UUID, payload: UsuarioUpdate, *, acto
     if not is_admin_global:
         if usuario.unidade_hospitalar_id != actor.unidade_hospitalar_id:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem acesso a este usuário.")
-        if "unidade_hospitalar_id" in dados:
+        # O frontend sempre reenvia a unidade atual no payload (implícita para
+        # quem não é Admin Global) — só bloqueia se o valor for de fato uma
+        # tentativa de mover o usuário para outra unidade.
+        if "unidade_hospitalar_id" in dados and dados["unidade_hospitalar_id"] != actor.unidade_hospitalar_id:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, "Seu perfil não pode alterar a unidade hospitalar de um usuário."
             )
