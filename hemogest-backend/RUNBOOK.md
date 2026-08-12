@@ -1,5 +1,8 @@
 # RUNBOOK — Primeira execução do HemoGest
 
+> Este documento é sobre rodar **localmente** (dev). Pra colocar em
+> produção no Fly.io, veja [`DEPLOY.md`](./DEPLOY.md).
+
 Este documento existe porque o ambiente onde o código foi escrito **não
 tinha rede liberada nem Postgres/Docker instalados** — tudo foi validado
 por leitura, `py_compile`/`tsc --noEmit`, e uma suíte de testes de lógica

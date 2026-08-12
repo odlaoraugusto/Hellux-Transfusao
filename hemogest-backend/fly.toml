@@ -1,0 +1,72 @@
+# fly.toml — HemoGest API (backend)
+#
+# Configuração de deploy no Fly.io. NÃO contém segredos — tudo que é
+# sensível (JWT_SECRET_KEY, DATABASE_URL, FIELD_ENCRYPTION_KEY, credenciais
+# de MinIO/S3 etc.) vai via `fly secrets set` (ver hemogest-backend/DEPLOY.md).
+#
+# 'app' abaixo é um placeholder — nomes de app no Fly são globalmente únicos.
+# Troque para o nome real escolhido em `fly launch` / `fly apps create` antes
+# do primeiro deploy. O frontend (Opção A do DEPLOY.md) aponta pra URL
+# pública deste app via VITE_API_BASE_URL no build — se trocar o nome aqui,
+# lembre de trocar também o valor de VITE_API_BASE_URL no deploy do frontend.
+#
+# ATENÇÃO: a sintaxe do fly.toml e as flags do flyctl mudam de tempos em
+# tempos. Antes do primeiro deploy, rode `fly config validate` nesta pasta
+# pra confirmar que este arquivo ainda está no formato esperado pela versão
+# instalada da CLI.
+app = "hemogest-backend"
+primary_region = "gru" # São Paulo — decisão deliberada por residência de dados (LGPD)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Só configuração não-sensível. CORS_ORIGINS é uma lista de origens
+  # públicas (não é segredo), por isso pode ir aqui — mas o valor abaixo é
+  # só placeholder de exemplo, ajuste pro domínio real do frontend antes do
+  # deploy. Pydantic-settings espera uma string JSON-array para List[str].
+  APP_ENV = "production"
+  APP_DEBUG = "false"
+  CORS_ORIGINS = '["https://app.hemogest.com.br"]'
+  LOG_LEVEL = "INFO"
+  LOG_JSON = "true"
+  STORAGE_BACKEND = "minio"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Não há [processes] aqui de propósito: o comando de start (uvicorn com
+  # --proxy-headers) vive só no CMD do Dockerfile, pra não ter duas fontes
+  # de verdade sobre como a API sobe.
+  # auto_stop_machines / auto_start_machines desligados (false): esta é uma
+  # API síncrona por trás de um proxy que também recebe uploads de anexo e
+  # SSE/long polling eventual — "cold start" de máquina parada custaria
+  # latência perceptível no primeiro request de cada usuário, o que é ruim
+  # numa ferramenta clínica usada em plantão. Para o estágio de MVP/piloto
+  # de baixo tráfego isso tem um custo real (máquina sempre ligada = sempre
+  # cobrando). Se o piloto rodar com poucos usuários e o custo pesar mais
+  # que a latência de cold start, mude para `auto_stop_machines = "stop"` +
+  # `auto_start_machines = true` e ajuste `min_machines_running = 0` — documente
+  # essa troca explicitamente se decidir mudar, porque afeta a experiência
+  # do usuário em produção, não é só um detalhe de infra.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/v1/health"
+    protocol = "http"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

@@ -5,7 +5,12 @@
  * este estágio do projeto). Renova o access token automaticamente em um
  * 401, repetindo a requisição original uma única vez.
  */
-const API_BASE = "/api/v1";
+// Em produção (build), VITE_API_BASE_URL pode apontar pra URL absoluta do
+// backend (ex: https://hemogest-backend.fly.dev/api/v1) — necessário se
+// front e back forem hosts/domínios diferentes (ver hemogest-backend/DEPLOY.md).
+// Sem essa variável definida no build, mantém o comportamento atual: caminho
+// relativo, resolvido pelo proxy do Vite em dev.
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
 interface TokenState {
   accessToken: string | null;

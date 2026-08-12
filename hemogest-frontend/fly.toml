@@ -1,0 +1,48 @@
+# fly.toml — HemoGest Frontend (SPA estática via nginx)
+#
+# 'app' é placeholder — nomes de app no Fly são globalmente únicos, troque
+# antes do primeiro deploy. Sem segredos aqui (é um app estático — não tem
+# nada sensível pra esconder, o bundle JS é público por definição).
+# ATENÇÃO: rode `fly config validate` nesta pasta antes do primeiro deploy —
+# a sintaxe do fly.toml muda de tempos em tempos entre versões do flyctl.
+app = "hemogest-frontend"
+primary_region = "gru" # mesma região do backend — não é estritamente necessário
+                        # pra um app estático (não lida com dado sensível em
+                        # trânsito próprio, só serve arquivos), mas mantém tudo
+                        # no mesmo lugar por simplicidade operacional.
+
+[build]
+  dockerfile = "Dockerfile"
+
+  # VITE_API_BASE_URL precisa ser passado como build arg (não como [env] /
+  # secret — nginx não lê variável de ambiente do Fly em runtime aqui, o
+  # Vite já embutiu o valor no JS durante `fly deploy`). Exemplo:
+  #   fly deploy --build-arg VITE_API_BASE_URL=https://hemogest-backend.fly.dev/api/v1
+  # Ver hemogest-backend/DEPLOY.md.
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Auto-stop faz sentido aqui: é conteúdo estático servido por nginx, sem
+  # estado nenhum. Um cold start de máquina parada é rápido (nginx sobe
+  # quase instantaneamente, sem conectar a banco/dependência externa) e o
+  # custo de manter ligado 24/7 não se justifica pra um site estático de
+  # baixo tráfego. Isso é diferente da decisão pro backend (ver
+  # hemogest-backend/fly.toml) justamente porque aqui não há penalidade de
+  # latência de conexão a banco nem risco de perder rate-limit em memória.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "15s"
+    method = "GET"
+    timeout = "3s"
+    path = "/"
+    protocol = "http"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

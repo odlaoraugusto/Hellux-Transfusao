@@ -24,6 +24,10 @@ class AcaoAuditoria:
     EXCLUSAO_LOGICA = "EXCLUSAO_LOGICA"
     DOWNLOAD = "DOWNLOAD"
     UPLOAD = "UPLOAD"
+    # Leitura de um registro individual sensível (ex.: prontuário de
+    # paciente) — accountability LGPD de "quem acessou o quê, quando".
+    # Deliberadamente não usada em buscas/listagens, só em GET-by-id.
+    LEITURA = "LEITURA"
 
 
 class AuditLog(Base, UUIDPrimaryKeyMixin):

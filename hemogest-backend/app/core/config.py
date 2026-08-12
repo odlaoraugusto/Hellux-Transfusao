@@ -23,10 +23,20 @@ class Settings(BaseSettings):
     TIMEZONE: str = "UTC"  # Premissa do DER: tudo em UTC no banco
 
     # --- Segurança / JWT ---
-    JWT_SECRET_KEY: str = Field(..., description="Chave secreta para assinatura dos tokens")
+    JWT_SECRET_KEY: str = Field(..., description="Chave secreta para assinatura dos tokens", min_length=32)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # --- Criptografia de campo (dados sensíveis de paciente) ---
+    # Segredo mestre — nunca usado diretamente, sempre via HKDF em
+    # app.db.encrypted_types (ver docstring lá para o porquê da separação de
+    # chaves). Gere com scripts/generate_encryption_key.py. Trocar esta chave
+    # em produção torna ilegíveis os dados já cifrados com a chave antiga —
+    # não é um valor para "resetar" sem um plano de re-criptografia.
+    FIELD_ENCRYPTION_KEY: str = Field(
+        ..., description="Segredo mestre para cifrar dados sensíveis de paciente", min_length=32
+    )
 
     # --- Banco de Dados ---
     DATABASE_URL: str = Field(..., description="postgresql+psycopg://user:pass@host:port/db")

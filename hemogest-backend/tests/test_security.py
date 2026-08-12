@@ -1,6 +1,7 @@
 import os
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-with-at-least-32-characters")
+os.environ.setdefault("FIELD_ENCRYPTION_KEY", "test-field-key-with-at-least-32-characters")
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost:5432/test")
 
 from app.core.security import (  # noqa: E402

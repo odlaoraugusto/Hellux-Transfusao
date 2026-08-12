@@ -32,7 +32,7 @@ def pesquisar(
 
 @router.get("/{paciente_id}", response_model=PacienteOut)
 def obter(paciente_id: uuid.UUID, db: Session = Depends(get_db), ctx: TenantContext = Depends(require_unidade_resolvida)):
-    return paciente_service.get_paciente(db, paciente_id, ctx.unidade_hospitalar_id)
+    return paciente_service.get_paciente(db, paciente_id, ctx.unidade_hospitalar_id, actor_id=ctx.user_id)
 
 
 @router.post("", response_model=PacienteOut, status_code=status.HTTP_201_CREATED)
