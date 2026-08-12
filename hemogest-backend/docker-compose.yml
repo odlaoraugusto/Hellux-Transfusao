@@ -1,0 +1,44 @@
+services:
+  api:
+    build: .
+    container_name: hemogest-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - minio
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    image: postgres:16-alpine
+    container_name: hemogest-db
+    environment:
+      POSTGRES_USER: hemogest
+      POSTGRES_PASSWORD: hemogest
+      POSTGRES_DB: hemogest
+    ports:
+      - "5432:5432"
+    volumes:
+      - hemogest_db_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: hemogest-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: hemogest
+      MINIO_ROOT_PASSWORD: troque-esta-chave-em-producao
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - hemogest_minio_data:/data
+
+volumes:
+  hemogest_db_data:
+  hemogest_minio_data:

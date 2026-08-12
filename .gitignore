@@ -1,0 +1,6 @@
+# Configuração pessoal/local do Claude Code — não compartilhar.
+.claude/settings.local.json
+
+# Sistema
+.DS_Store
+Thumbs.db

@@ -1,0 +1,29 @@
+# Segredos e dados locais — nunca devem entrar nas layers da imagem Docker.
+.env
+.env.docker
+.env.*.local
+*.db
+*.db-journal
+storage/
+
+# Nada do repositório de código-fonte/ferramentas precisa estar na imagem.
+.git/
+.gitignore
+.dockerignore
+
+# Artefatos de desenvolvimento — não pertencem à imagem de runtime.
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
+build/
+tests/
+docs/
+README.md
+RUNBOOK.md
