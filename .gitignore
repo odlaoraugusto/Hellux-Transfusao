@@ -1,5 +1,6 @@
-# Configuração pessoal/local do Claude Code — não compartilhar.
+# Configuração/estado pessoal-local do Claude Code — não compartilhar.
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Sistema
 .DS_Store

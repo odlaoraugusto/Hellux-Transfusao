@@ -27,10 +27,15 @@ primary_region = "gru" # São Paulo — decisão deliberada por residência de d
   # deploy. Pydantic-settings espera uma string JSON-array para List[str].
   APP_ENV = "production"
   APP_DEBUG = "false"
-  CORS_ORIGINS = '["https://app.hemogest.com.br"]'
+  CORS_ORIGINS = '["https://hemogest-frontend.fly.dev"]'
   LOG_LEVEL = "INFO"
   LOG_JSON = "true"
-  STORAGE_BACKEND = "minio"
+  # Uso interno pequeno, sem domínio próprio nem publicação pública — disco
+  # local (num Fly Volume persistente, ver [mounts] abaixo) evita depender
+  # de um provedor S3 externo. Só funciona com 1 máquina (sem
+  # auto-scaling horizontal), o que já é o caso aqui (min/max = 1).
+  STORAGE_BACKEND = "local"
+  LOCAL_STORAGE_PATH = "/app/storage"
 
 [http_service]
   internal_port = 8000
@@ -38,20 +43,14 @@ primary_region = "gru" # São Paulo — decisão deliberada por residência de d
   # Não há [processes] aqui de propósito: o comando de start (uvicorn com
   # --proxy-headers) vive só no CMD do Dockerfile, pra não ter duas fontes
   # de verdade sobre como a API sobe.
-  # auto_stop_machines / auto_start_machines desligados (false): esta é uma
-  # API síncrona por trás de um proxy que também recebe uploads de anexo e
-  # SSE/long polling eventual — "cold start" de máquina parada custaria
-  # latência perceptível no primeiro request de cada usuário, o que é ruim
-  # numa ferramenta clínica usada em plantão. Para o estágio de MVP/piloto
-  # de baixo tráfego isso tem um custo real (máquina sempre ligada = sempre
-  # cobrando). Se o piloto rodar com poucos usuários e o custo pesar mais
-  # que a latência de cold start, mude para `auto_stop_machines = "stop"` +
-  # `auto_start_machines = true` e ajuste `min_machines_running = 0` — documente
-  # essa troca explicitamente se decidir mudar, porque afeta a experiência
-  # do usuário em produção, não é só um detalhe de infra.
-  auto_stop_machines = false
+  # Ferramenta de controle interno, uso esporádico (não é sistema clínico
+  # de plantão 24/7) — prioriza economia sobre latência: a máquina desliga
+  # sozinha sem tráfego e liga de novo no próximo request (alguns segundos
+  # de cold start, aceitável aqui). Se um dia isso virar uso crítico/contínuo,
+  # troque para auto_stop_machines = false + min_machines_running = 1.
+  auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
   [http_service.concurrency]
     type = "requests"
@@ -70,3 +69,7 @@ primary_region = "gru" # São Paulo — decisão deliberada por residência de d
   memory = "512mb"
   cpu_kind = "shared"
   cpus = 1
+
+[[mounts]]
+  source = "hemogest_storage"
+  destination = "/app/storage"

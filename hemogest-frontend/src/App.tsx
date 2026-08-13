@@ -16,6 +16,7 @@ import { IndicadoresPage } from "@/pages/IndicadoresPage";
 import { ParametrizacoesPage } from "@/pages/ParametrizacoesPage";
 import { UsuariosPage } from "@/pages/UsuariosPage";
 import { AuditoriaPage } from "@/pages/AuditoriaPage";
+import { TrocarSenhaPage } from "@/pages/TrocarSenhaPage";
 
 export function App() {
   return (
@@ -43,6 +44,7 @@ export function App() {
               <Route path="/parametrizacoes" element={<ParametrizacoesPage />} />
               <Route path="/usuarios" element={<UsuariosPage />} />
               <Route path="/auditoria" element={<AuditoriaPage />} />
+              <Route path="/conta/senha" element={<TrocarSenhaPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Moon, Sun, LogOut } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Moon, Sun, LogOut, KeyRound } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
@@ -65,6 +66,14 @@ export function Navbar() {
               <p className="text-sm font-medium leading-tight">{usuario.nome}</p>
               <p className="text-xs text-ink-muted leading-tight">{usuario.email}</p>
             </div>
+            <Link
+              to="/conta/senha"
+              aria-label="Trocar senha"
+              title="Trocar senha"
+              className="rounded-lg p-2 text-ink-muted hover:bg-neutral-100"
+            >
+              <KeyRound size={18} />
+            </Link>
             <button
               onClick={logout}
               aria-label="Sair"
