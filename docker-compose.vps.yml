@@ -47,7 +47,9 @@ services:
       - "traefik.http.routers.hemogest-frontend.rule=Host(`hemogest.169-58-217-209.sslip.io`)"
       - "traefik.http.routers.hemogest-frontend.entrypoints=websecure"
       - "traefik.http.routers.hemogest-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.hemogest-frontend.loadbalancer.server.port=80"
+      # Porta 8080, não 80: o nginx.conf deste projeto escuta em 8080 de
+      # propósito (evita rodar o master process como root — ver nginx.conf).
+      - "traefik.http.services.hemogest-frontend.loadbalancer.server.port=8080"
 
 networks:
   proxy:
