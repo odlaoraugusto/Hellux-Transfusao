@@ -1,0 +1,59 @@
+# Deploy nesta VPS — reaproveita o Postgres e o Traefik já rodando (mesmo
+# padrão do stack do almoxarifado/microgest em /opt/stacks): o container do
+# Postgres nunca é exposto à internet, só entra na rede "backend" interna do
+# Docker; só os serviços do HemoGest são publicados, via Traefik com HTTPS
+# automático (Let's Encrypt) na rede "proxy".
+#
+# Uso (na VPS, dentro do checkout deste repo):
+#   cp hemogest-backend/.env.vps.example hemogest-backend/.env   # preencher com os valores reais
+#   docker compose -f docker-compose.vps.yml up -d --build
+#
+# Depois do primeiro up, rodar as migrations e o seed do admin uma vez:
+#   docker compose -f docker-compose.vps.yml exec hemogest-backend alembic upgrade head
+#   docker compose -f docker-compose.vps.yml exec hemogest-backend python scripts/seed_admin.py --email admin@hemogest.internal --senha 'TROQUE-ISSO' --nome Administrador
+services:
+  hemogest-backend:
+    build:
+      context: ./hemogest-backend
+      dockerfile: Dockerfile
+    container_name: hemogest-backend
+    restart: unless-stopped
+    env_file:
+      - ./hemogest-backend/.env
+    volumes:
+      - hemogest_storage:/app/storage
+    networks:
+      - proxy
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hemogest-backend.rule=Host(`hemogest-api.169-58-217-209.sslip.io`)"
+      - "traefik.http.routers.hemogest-backend.entrypoints=websecure"
+      - "traefik.http.routers.hemogest-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.hemogest-backend.loadbalancer.server.port=8000"
+
+  hemogest-frontend:
+    build:
+      context: ./hemogest-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: https://hemogest-api.169-58-217-209.sslip.io/api/v1
+    container_name: hemogest-frontend
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hemogest-frontend.rule=Host(`hemogest.169-58-217-209.sslip.io`)"
+      - "traefik.http.routers.hemogest-frontend.entrypoints=websecure"
+      - "traefik.http.routers.hemogest-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.hemogest-frontend.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
+  backend:
+    external: true
+
+volumes:
+  hemogest_storage:
