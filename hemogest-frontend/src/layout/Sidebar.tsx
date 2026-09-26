@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   UserCog,
   History,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
@@ -20,6 +21,7 @@ const ITENS = [
   { to: "/unidade", label: "Unidade Hospitalar", icone: Building2 },
   { to: "/pacientes", label: "Pacientes", icone: Users },
   { to: "/hemocomponentes", label: "Hemocomponentes", icone: Droplet },
+  { to: "/solicitacoes", label: "Solicitações", icone: ClipboardList },
   { to: "/acompanhamentos", label: "Acompanhamento", icone: Activity },
   { to: "/reacoes", label: "Reações Transfusionais", icone: AlertTriangle },
   { to: "/devolucoes-descartes", label: "Devoluções / Descartes", icone: Undo2 },

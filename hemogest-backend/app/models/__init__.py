@@ -21,6 +21,7 @@ from app.models.reacao_transfusional import ReacaoTransfusional  # noqa: F401
 from app.models.refresh_token import RefreshToken  # noqa: F401
 from app.models.role import Role  # noqa: F401
 from app.models.setor import Setor  # noqa: F401
+from app.models.solicitacao_transfusional import SolicitacaoBolsa, SolicitacaoTransfusional  # noqa: F401
 from app.models.unidade_hemocomponente import UnidadeHemocomponente  # noqa: F401
 from app.models.unidade_hospitalar import UnidadeHospitalar  # noqa: F401
 from app.models.usuario import Usuario  # noqa: F401
@@ -44,6 +45,8 @@ __all__ = [
     "Role",
     "Setor",
     "SinalVital",
+    "SolicitacaoBolsa",
+    "SolicitacaoTransfusional",
     "TipoReacao",
     "UnidadeHemocomponente",
     "UnidadeHospitalar",
