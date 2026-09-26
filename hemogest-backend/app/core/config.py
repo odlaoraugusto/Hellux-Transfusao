@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # --- Aplicação ---
-    APP_NAME: str = "HemoGest"
+    APP_NAME: str = "Hellux - Módulo de Transfusão"
     APP_ENV: str = Field(default="development")  # development | staging | production
     # Default é False de propósito: se alguém subir em produção sem definir
     # APP_DEBUG explicitamente no ambiente, /docs e /redoc ficam fechados por

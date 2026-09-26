@@ -1,7 +1,7 @@
 {
-  "name": "HemoGest",
-  "short_name": "HemoGest",
-  "description": "Precisão que salva vidas.",
+  "name": "Hellux — Módulo de Transfusão",
+  "short_name": "Hellux",
+  "description": "Módulo de Transfusão — gestão de Agências Transfusionais.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F8FA",
