@@ -37,7 +37,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-surface-bg px-4">
       <Card className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-1">
-          <img src="/brand/hemogest-logo-horizontal.svg" alt="HemoGest — Precisão que salva vidas." className="h-24" />
+          <img src="/brand/hemogest-logo-horizontal.svg" alt="Hellux — Módulo de Transfusão" className="h-24" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

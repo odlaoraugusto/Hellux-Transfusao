@@ -9,6 +9,7 @@ import { PacientesPage } from "@/pages/PacientesPage";
 import { UnidadeHospitalarPage } from "@/pages/UnidadeHospitalarPage";
 import { HemocomponentesPage } from "@/pages/HemocomponentesPage";
 import { AcompanhamentosPage } from "@/pages/AcompanhamentosPage";
+import { SolicitacoesPage } from "@/pages/SolicitacoesPage";
 import { ReacoesTransfusionaisPage } from "@/pages/ReacoesTransfusionaisPage";
 import { DevolucoesDescartesPage } from "@/pages/DevolucoesDescartesPage";
 import { RelatoriosPage } from "@/pages/RelatoriosPage";
@@ -36,6 +37,7 @@ export function App() {
               <Route path="/pacientes" element={<PacientesPage />} />
               <Route path="/unidade" element={<UnidadeHospitalarPage />} />
               <Route path="/hemocomponentes" element={<HemocomponentesPage />} />
+              <Route path="/solicitacoes" element={<SolicitacoesPage />} />
               <Route path="/acompanhamentos" element={<AcompanhamentosPage />} />
               <Route path="/reacoes" element={<ReacoesTransfusionaisPage />} />
               <Route path="/devolucoes-descartes" element={<DevolucoesDescartesPage />} />

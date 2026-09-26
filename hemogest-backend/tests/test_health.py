@@ -14,7 +14,7 @@ client = TestClient(app)
 def test_root() -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json()["app"] == "HemoGest"
+    assert response.json()["app"] == "Hellux - Módulo de Transfusão"
 
 
 def test_health() -> None:

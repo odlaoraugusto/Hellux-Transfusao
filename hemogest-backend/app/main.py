@@ -17,7 +17,7 @@ configure_logging()
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="API do HemoGest — gestão de Agências Transfusionais.",
+    description="API do Hellux - Módulo de Transfusão — gestão de Agências Transfusionais.",
     version="0.1.0",
     docs_url="/docs" if settings.APP_DEBUG else None,
     redoc_url="/redoc" if settings.APP_DEBUG else None,
