@@ -437,7 +437,7 @@ export function SolicitarTransfusaoPage() {
             <p className="mt-1 text-sm text-ink-muted">Protocolo</p>
             <p className="font-mono text-2xl font-bold text-hemo">{gravado.protocolo}</p>
             <p className="mx-auto mt-3 max-w-md text-sm text-ink-muted">
-              Abra a visualização para imprimir. O carimbo e a assinatura do médico são feitos no papel.
+              Abra a visualização para imprimir.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
               <Button onClick={() => navigate(`/formulario/${gravado.token}`, { state: { unidadeId } })} className="flex items-center gap-2">
@@ -667,7 +667,7 @@ export function SolicitarTransfusaoPage() {
             </Secao>
 
             <Secao titulo="Termos de responsabilidade e consentimento">
-              <p className="mb-3 text-sm text-ink-muted">Preencha só se o termo se aplicar. O carimbo e a assinatura são feitos no papel, depois de imprimir.</p>
+              <p className="mb-3 text-sm text-ink-muted">Preencha só se o termo se aplicar.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-dashed border-hemo/50 p-3">
                   <h3 className="border-l-4 border-hemo pl-2 text-xs font-bold uppercase text-hemo">Termo: transfusão heterogrupo</h3>
