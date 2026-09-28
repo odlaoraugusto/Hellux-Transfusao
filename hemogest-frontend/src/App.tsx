@@ -10,6 +10,9 @@ import { UnidadeHospitalarPage } from "@/pages/UnidadeHospitalarPage";
 import { HemocomponentesPage } from "@/pages/HemocomponentesPage";
 import { AcompanhamentosPage } from "@/pages/AcompanhamentosPage";
 import { SolicitacoesPage } from "@/pages/SolicitacoesPage";
+import { FormulariosRecebidosPage } from "@/pages/FormulariosRecebidosPage";
+import { SolicitarTransfusaoPage } from "@/pages/SolicitarTransfusaoPage";
+import { ImpressaoFormularioPage } from "@/pages/ImpressaoFormularioPage";
 import { ReacoesTransfusionaisPage } from "@/pages/ReacoesTransfusionaisPage";
 import { DevolucoesDescartesPage } from "@/pages/DevolucoesDescartesPage";
 import { RelatoriosPage } from "@/pages/RelatoriosPage";
@@ -26,6 +29,17 @@ export function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            {/* Formulário público de solicitação: sem login. O link de impressão leva um token secreto. */}
+            <Route path="/solicitar/:unidadeId" element={<SolicitarTransfusaoPage />} />
+            <Route path="/formulario/:token" element={<ImpressaoFormularioPage modo="publico" />} />
+            <Route
+              path="/formularios/:id/imprimir"
+              element={
+                <ProtectedRoute>
+                  <ImpressaoFormularioPage modo="interno" />
+                </ProtectedRoute>
+              }
+            />
             <Route
               element={
                 <ProtectedRoute>
@@ -38,6 +52,7 @@ export function App() {
               <Route path="/unidade" element={<UnidadeHospitalarPage />} />
               <Route path="/hemocomponentes" element={<HemocomponentesPage />} />
               <Route path="/solicitacoes" element={<SolicitacoesPage />} />
+              <Route path="/formularios" element={<FormulariosRecebidosPage />} />
               <Route path="/acompanhamentos" element={<AcompanhamentosPage />} />
               <Route path="/reacoes" element={<ReacoesTransfusionaisPage />} />
               <Route path="/devolucoes-descartes" element={<DevolucoesDescartesPage />} />
