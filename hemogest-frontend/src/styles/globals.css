@@ -29,3 +29,18 @@
 .dark .border-neutral-200 {
   @apply border-neutral-700;
 }
+
+/* Impressão do formulário de solicitação: A4 retrato, fundo branco e cores mantidas
+   (o vermelho dos títulos precisa sair no papel). */
+@page {
+  size: A4 portrait;
+  margin: 7mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}

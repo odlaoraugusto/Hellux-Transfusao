@@ -12,6 +12,7 @@ import {
   UserCog,
   History,
   ClipboardList,
+  FileText,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
@@ -22,6 +23,7 @@ const ITENS = [
   { to: "/pacientes", label: "Pacientes", icone: Users },
   { to: "/hemocomponentes", label: "Hemocomponentes", icone: Droplet },
   { to: "/solicitacoes", label: "Solicitações", icone: ClipboardList },
+  { to: "/formularios", label: "Formulários recebidos", icone: FileText },
   { to: "/acompanhamentos", label: "Acompanhamento", icone: Activity },
   { to: "/reacoes", label: "Reações Transfusionais", icone: AlertTriangle },
   { to: "/devolucoes-descartes", label: "Devoluções / Descartes", icone: Undo2 },

@@ -7,6 +7,7 @@ from app.models.acompanhamento_transfusional import AcompanhamentoTransfusional,
 from app.models.anexo import Anexo  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.devolucao_descarte import Descarte, Devolucao  # noqa: F401
+from app.models.formulario_solicitacao import FormularioSolicitacao  # noqa: F401
 from app.models.internacao import Internacao, InternacaoSetorHistorico  # noqa: F401
 from app.models.paciente import Paciente  # noqa: F401
 from app.models.parametrizacao import (  # noqa: F401
@@ -32,6 +33,7 @@ __all__ = [
     "AuditLog",
     "Descarte",
     "Devolucao",
+    "FormularioSolicitacao",
     "Gravidade",
     "Hemocomponente",
     "Internacao",

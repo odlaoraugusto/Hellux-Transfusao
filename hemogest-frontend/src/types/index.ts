@@ -62,3 +62,76 @@ export interface Pendencias {
   transfusoes_em_andamento: number;
   reacoes_abertas: number;
 }
+
+/** Formulário de solicitação de transfusão (formulário público). */
+export interface FormularioEstabelecimento {
+  nome: string;
+  razao_social: string;
+  cnpj: string;
+  cnes: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  uf: string | null;
+}
+
+export interface FormularioItem {
+  hemocomponente_id: string | null;
+  hemocomponente_nome: string;
+  hemocomponente_sigla: string | null;
+  quantidade: number;
+  unidade_medida: "UNIDADE" | "ML";
+  modificacoes: string[];
+}
+
+export interface FormularioSolicitacao {
+  id: string;
+  protocolo: string;
+  criado_em: string;
+  estabelecimento: FormularioEstabelecimento;
+  convenio: string | null;
+  data_solicitacao: string;
+  hora_solicitacao: string;
+  nome_paciente: string;
+  prontuario: string;
+  sexo: "M" | "F";
+  data_nascimento: string;
+  nome_mae: string;
+  raca_cor: string;
+  setor_nome: string;
+  leito: string;
+  peso_kg: number;
+  diagnostico: string;
+  hb: string;
+  ht: string;
+  plaquetas: string;
+  tp: string | null;
+  ttpa: string | null;
+  indicacao: "USO" | "RESERVA";
+  antecedentes_transfusionais: boolean;
+  antecedentes_obstetricos: boolean | null;
+  reacao_previa: boolean;
+  reacao_previa_descricao: string | null;
+  itens: FormularioItem[];
+  modalidade: "EMERGENCIA" | "URGENCIA" | "ROTINA" | "PROGRAMADA";
+  observacoes: string | null;
+  termo_heterogrupo_medico: string | null;
+  termo_heterogrupo_crm: string | null;
+  termo_emergencia_medico: string | null;
+  termo_emergencia_crm: string | null;
+  medico_nome: string;
+  medico_crm: string;
+}
+
+export interface FormularioResumo {
+  id: string;
+  protocolo: string;
+  criado_em: string;
+  data_solicitacao: string;
+  hora_solicitacao: string;
+  nome_paciente: string;
+  setor_nome: string;
+  leito: string;
+  modalidade: FormularioSolicitacao["modalidade"];
+  medico_nome: string;
+  hemocomponentes: string[];
+}
