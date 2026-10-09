@@ -1,7 +1,10 @@
 """
-HemoGest — Service de Usuário e Autenticação (Sprint 2.2).
-Cobre: CRUD de usuário, login, refresh token (com revogação), logout,
-alteração de senha, recuperação de senha e primeiro acesso.
+HemoGest — Service de Usuário e Autenticação.
+Cobre: CRUD de usuário, login, refresh token (com revogação), logout e
+alteração de senha. Sem fluxo de e-mail (login não é e-mail, ver
+app.models.usuario) — senha inicial/reset é definida direto por quem cria
+ou administra a conta, `primeiro_acesso` só força a troca no próximo login,
+não bloqueia a entrada.
 """
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -16,14 +19,12 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    generate_opaque_token,
     hash_opaque_token,
     hash_password,
     verify_password,
 )
 from app.db.base_mixins import utcnow
 from app.models.audit_log import AcaoAuditoria
-from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.role import Role, RoleCodigo
 from app.models.usuario import Usuario
@@ -55,8 +56,8 @@ def get_user_by_id(db: Session, user_id: str | uuid.UUID) -> Usuario | None:
     return db.get(Usuario, uid)
 
 
-def get_user_by_email(db: Session, email: str) -> Usuario | None:
-    return db.scalar(select(Usuario).where(Usuario.email == email.lower()))
+def get_user_by_login(db: Session, login: str) -> Usuario | None:
+    return db.scalar(select(Usuario).where(Usuario.login == login.lower()))
 
 
 def list_users(db: Session, unidade_hospitalar_id: uuid.UUID | None) -> list[Usuario]:
@@ -68,24 +69,23 @@ def list_users(db: Session, unidade_hospitalar_id: uuid.UUID | None) -> list[Usu
 
 # --- CRUD ----------------------------------------------------------------
 
-def create_user(db: Session, payload: UsuarioCreate, *, actor: Usuario) -> tuple[Usuario, str]:
-    if get_user_by_email(db, payload.email) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Já existe um usuário com este e-mail.")
+def create_user(db: Session, payload: UsuarioCreate, *, actor: Usuario) -> Usuario:
+    if get_user_by_login(db, payload.login) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Já existe um usuário com este login.")
 
     is_admin_global = actor.role.codigo == RoleCodigo.ADMIN_GLOBAL
     _validar_role_atribuivel(db, payload.role_id, is_admin_global=is_admin_global)
     # Supervisor só cria usuário na própria unidade — ignora unidade enviada no payload.
     unidade_hospitalar_id = payload.unidade_hospitalar_id if is_admin_global else actor.unidade_hospitalar_id
 
-    # Senha inicial é uma senha aleatória inutilizável até o primeiro acesso
-    # definir a senha real via token de recuperação.
-    senha_provisoria = generate_opaque_token()
     usuario = Usuario(
         nome=payload.nome,
-        email=payload.email.lower(),
-        senha_hash=hash_password(senha_provisoria),
+        login=payload.login,
+        senha_hash=hash_password(payload.senha),
         role_id=payload.role_id,
         unidade_hospitalar_id=unidade_hospitalar_id,
+        # Senha foi definida por quem criou a conta (temporária, repassada
+        # por fora) — só força a troca no primeiro login.
         primeiro_acesso=True,
         created_by=actor.id,
         updated_by=actor.id,
@@ -93,16 +93,12 @@ def create_user(db: Session, payload: UsuarioCreate, *, actor: Usuario) -> tuple
     db.add(usuario)
     db.flush()
 
-    reset_token = _emitir_token_recuperacao(db, usuario)
-
     registrar_auditoria(
         db, acao=AcaoAuditoria.CRIACAO, entidade="usuario", entidade_id=usuario.id, usuario_id=actor.id
     )
     db.commit()
     db.refresh(usuario)
-    # NOTE (Fase futura): integrar serviço de e-mail. Por ora, o token de
-    # primeiro acesso é retornado ao chamador (admin) para envio manual.
-    return usuario, reset_token
+    return usuario
 
 
 def update_user(db: Session, user_id: uuid.UUID, payload: UsuarioUpdate, *, actor: Usuario) -> Usuario:
@@ -124,6 +120,14 @@ def update_user(db: Session, user_id: uuid.UUID, payload: UsuarioUpdate, *, acto
             )
         if "role_id" in dados:
             _validar_role_atribuivel(db, dados["role_id"], is_admin_global=False)
+
+    if dados.get("senha"):
+        usuario.senha_hash = hash_password(dados.pop("senha"))
+        # Reset manual (ex.: usuário esqueceu a senha) exige troca no
+        # próximo login, mesma regra do usuário recém-criado.
+        usuario.primeiro_acesso = True
+    else:
+        dados.pop("senha", None)
 
     for field, value in dados.items():
         setattr(usuario, field, value)
@@ -157,8 +161,8 @@ def deactivate_user(db: Session, user_id: uuid.UUID, *, actor: Usuario) -> None:
 
 # --- Autenticação ---------------------------------------------------------
 
-def authenticate(db: Session, email: str, senha: str, *, ip_origem: str | None = None) -> TokenResponse:
-    usuario = get_user_by_email(db, email)
+def authenticate(db: Session, login: str, senha: str, *, ip_origem: str | None = None) -> TokenResponse:
+    usuario = get_user_by_login(db, login)
     senha_ok = usuario is not None and verify_password(senha, usuario.senha_hash)
 
     if not senha_ok or usuario is None or not usuario.ativo or usuario.deleted_at is not None:
@@ -167,18 +171,14 @@ def authenticate(db: Session, email: str, senha: str, *, ip_origem: str | None =
             acao=AcaoAuditoria.LOGIN_FALHOU,
             entidade="usuario",
             usuario_id=usuario.id if usuario else None,
-            detalhes={"email": email},
+            detalhes={"login": login},
             ip_origem=ip_origem,
         )
         db.commit()
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "E-mail ou senha inválidos.")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Login ou senha inválidos.")
 
-    if usuario.primeiro_acesso:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Primeiro acesso: defina sua senha pelo link enviado antes de entrar.",
-        )
-
+    # `primeiro_acesso` não bloqueia a entrada — só sinaliza pro frontend
+    # forçar a troca de senha assim que loga (ver ExigeSenhaAtualizada).
     tokens = _emitir_par_de_tokens(db, usuario)
     usuario.ultimo_login_em = utcnow()
     registrar_auditoria(
@@ -243,53 +243,10 @@ def change_password(db: Session, usuario: Usuario, senha_atual: str, nova_senha:
     if not verify_password(senha_atual, usuario.senha_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Senha atual incorreta.")
     usuario.senha_hash = hash_password(nova_senha)
-    usuario.updated_at = utcnow()
-    db.flush()
-    registrar_auditoria(db, acao=AcaoAuditoria.EDICAO, entidade="usuario_senha", usuario_id=usuario.id)
-    db.commit()
-
-
-def request_password_reset(db: Session, email: str) -> str | None:
-    usuario = get_user_by_email(db, email)
-    if usuario is None or usuario.deleted_at is not None:
-        # Não revela se o e-mail existe (evita enumeração de usuários)
-        return None
-    return _emitir_token_recuperacao(db, usuario)
-
-
-def confirm_password_reset(db: Session, token: str, nova_senha: str) -> None:
-    token_hash = hash_opaque_token(token)
-    registro = db.scalar(
-        select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
-    )
-    if (
-        registro is None
-        or registro.usado
-        or registro.expira_em < datetime.now(timezone.utc)
-    ):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Token inválido ou expirado.")
-
-    usuario = get_user_by_id(db, registro.usuario_id)
-    if usuario is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Usuário não encontrado.")
-
-    usuario.senha_hash = hash_password(nova_senha)
     usuario.primeiro_acesso = False
     usuario.updated_at = utcnow()
-    registro.usado = True
     db.flush()
     registrar_auditoria(db, acao=AcaoAuditoria.EDICAO, entidade="usuario_senha", usuario_id=usuario.id)
     db.commit()
 
 
-def _emitir_token_recuperacao(db: Session, usuario: Usuario) -> str:
-    raw = generate_opaque_token()
-    db.add(
-        PasswordResetToken(
-            usuario_id=usuario.id,
-            token_hash=hash_opaque_token(raw),
-            expira_em=datetime.now(timezone.utc) + timedelta(hours=24),
-        )
-    )
-    db.flush()
-    return raw

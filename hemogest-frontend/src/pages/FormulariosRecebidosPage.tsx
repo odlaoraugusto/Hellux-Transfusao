@@ -168,7 +168,8 @@ export function FormulariosRecebidosPage() {
                     <td className="px-4 py-2.5 font-mono text-xs">{f.protocolo}</td>
                     <td className="px-4 py-2.5 font-medium">{f.nome_paciente}</td>
                     <td className="px-4 py-2.5">
-                      {f.setor_nome} · {f.leito}
+                      {f.setor_nome}
+                      {f.leito ? ` · ${f.leito}` : ""}
                     </td>
                     <td className="px-4 py-2.5">
                       <span className={clsx("rounded-full px-2.5 py-0.5 text-xs font-medium", COR_MODALIDADE[f.modalidade])}>{MODALIDADE_ROTULO[f.modalidade]}</span>

@@ -22,6 +22,10 @@ class RoleUpdate(BaseModel):
     permissoes: list[str] | None = None
 
 
+class RolePermissoesUpdate(BaseModel):
+    permissoes: list[str] = Field(default_factory=list)
+
+
 class RoleOut(RoleBase):
     model_config = ConfigDict(from_attributes=True)
 

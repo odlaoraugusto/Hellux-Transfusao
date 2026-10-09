@@ -16,7 +16,6 @@ from app.api.v1.pacientes import router as pacientes_router
 from app.api.v1.parametrizacoes import (
     gravidades_router,
     hemocomponentes_router,
-    motivos_descarte_router,
     motivos_devolucao_router,
     tipos_reacao_router,
 )
@@ -40,7 +39,6 @@ api_router.include_router(unidades_router)
 api_router.include_router(setores_router)
 api_router.include_router(hemocomponentes_router)
 api_router.include_router(motivos_devolucao_router)
-api_router.include_router(motivos_descarte_router)
 api_router.include_router(tipos_reacao_router)
 api_router.include_router(gravidades_router)
 api_router.include_router(pacientes_router)

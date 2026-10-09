@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.permissions import require_roles
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.parametrizacao import Gravidade, Hemocomponente, MotivoDescarte, MotivoDevolucao, TipoReacao
+from app.models.parametrizacao import Gravidade, Hemocomponente, MotivoDevolucao, TipoReacao
 from app.models.role import RoleCodigo
 from app.schemas.parametrizacao import (
     GravidadeCreate,
@@ -21,8 +21,6 @@ from app.schemas.parametrizacao import (
     HemocomponenteCreate,
     HemocomponenteOut,
     HemocomponenteUpdate,
-    MotivoDescarteCreate,
-    MotivoDescarteOut,
     MotivoDevolucaoCreate,
     MotivoDevolucaoOut,
     ParametrizacaoItemUpdate,
@@ -31,7 +29,7 @@ from app.schemas.parametrizacao import (
 )
 from app.services import parametrizacao_service as svc
 
-_pode_escrever = require_roles(RoleCodigo.SUPERVISOR)
+_pode_escrever = require_roles(RoleCodigo.SUPERVISOR, RoleCodigo.RT)
 
 
 def _build_router(*, prefix: str, tag: str, model, schema_out, schema_create, schema_update) -> APIRouter:
@@ -93,21 +91,15 @@ hemocomponentes_router = _build_router(
     schema_update=HemocomponenteUpdate,
 )
 
+# Motivos de devolução E descarte (2026-10-05, pedido do cliente: "coloca
+# os parâmetros de devolução e descarte juntos") — uma lista só, usada nos
+# dois fluxos; não existe mais /motivos-descarte.
 motivos_devolucao_router = _build_router(
     prefix="/motivos-devolucao",
-    tag="Parametrização — Motivos de Devolução",
+    tag="Parametrização — Motivos de Devolução/Descarte",
     model=MotivoDevolucao,
     schema_out=MotivoDevolucaoOut,
     schema_create=MotivoDevolucaoCreate,
-    schema_update=ParametrizacaoItemUpdate,
-)
-
-motivos_descarte_router = _build_router(
-    prefix="/motivos-descarte",
-    tag="Parametrização — Motivos de Descarte",
-    model=MotivoDescarte,
-    schema_out=MotivoDescarteOut,
-    schema_create=MotivoDescarteCreate,
     schema_update=ParametrizacaoItemUpdate,
 )
 

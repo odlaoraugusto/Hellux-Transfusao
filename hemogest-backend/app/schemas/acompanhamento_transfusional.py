@@ -5,21 +5,27 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AcompanhamentoCreate(BaseModel):
-    internacao_id: uuid.UUID
-    unidade_hemocomponente_id: uuid.UUID
+    solicitacao_id: uuid.UUID
+
+
+class AcompanhamentoIniciarRequest(BaseModel):
+    # 2026-10-05, pedido do cliente: "permitir colocar o horário de início
+    # ... da infusão (atualmente pega o horario automaticamente)" — None
+    # mantém o comportamento antigo (usa o horário do servidor).
+    data_inicio: datetime | None = None
 
 
 class AcompanhamentoFinalizarRequest(BaseModel):
     observacoes_finalizacao: str | None = None
     houve_intercorrencia: bool = False
+    data_fim: datetime | None = None
 
 
 class AcompanhamentoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    internacao_id: uuid.UUID
-    unidade_hemocomponente_id: uuid.UUID
+    solicitacao_id: uuid.UUID
     status: str
     data_inicio: datetime | None
     data_fim: datetime | None

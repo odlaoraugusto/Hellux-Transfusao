@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { CampoSenha } from "@/components/ui/CampoSenha";
 
 function mensagemErro(err: unknown, padrao: string): string {
   if (err instanceof ApiError && err.body && typeof err.body === "object" && "detail" in err.body) {
@@ -12,6 +15,8 @@ function mensagemErro(err: unknown, padrao: string): string {
 }
 
 export function TrocarSenhaPage() {
+  const { usuario, refrescarUsuario } = useAuth();
+  const navigate = useNavigate();
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
@@ -40,6 +45,8 @@ export function TrocarSenhaPage() {
       setSenhaAtual("");
       setNovaSenha("");
       setConfirmacao("");
+      await refrescarUsuario();
+      if (usuario?.primeiro_acesso) navigate("/", { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setErro("Senha atual incorreta.");
@@ -59,35 +66,15 @@ export function TrocarSenhaPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium">Senha Atual</label>
-            <input
-              type="password"
-              required
-              value={senhaAtual}
-              onChange={(e) => setSenhaAtual(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-            />
+            <CampoSenha required autoComplete="current-password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Nova Senha</label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={novaSenha}
-              onChange={(e) => setNovaSenha(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-            />
+            <CampoSenha required minLength={8} autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Confirmar Nova Senha</label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={confirmacao}
-              onChange={(e) => setConfirmacao(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-            />
+            <CampoSenha required minLength={8} autoComplete="new-password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} />
           </div>
 
           {erro && <p className="text-sm text-danger">{erro}</p>}

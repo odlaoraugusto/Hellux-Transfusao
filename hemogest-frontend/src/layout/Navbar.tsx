@@ -64,7 +64,7 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-sm font-medium leading-tight">{usuario.nome}</p>
-              <p className="text-xs text-ink-muted leading-tight">{usuario.email}</p>
+              <p className="text-xs text-ink-muted leading-tight">{usuario.login}</p>
             </div>
             <Link
               to="/conta/senha"

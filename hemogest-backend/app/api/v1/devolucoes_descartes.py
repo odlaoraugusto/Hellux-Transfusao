@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.role import RoleCodigo
 from app.schemas.devolucao_descarte import DescarteCreate, DescarteOut, DevolucaoCreate, DevolucaoOut
 from app.services import devolucao_descarte_service as svc
 
 router = APIRouter(tags=["Devoluções e Descartes"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("devolucoes_descartes_gerenciar")
 
 
 @router.post("/devolucoes", response_model=DevolucaoOut, status_code=status.HTTP_201_CREATED)

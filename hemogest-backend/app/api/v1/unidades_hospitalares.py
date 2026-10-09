@@ -18,7 +18,7 @@ from app.services import unidade_hospitalar_service as svc
 router = APIRouter(prefix="/unidades-hospitalares", tags=["Unidade Hospitalar"])
 
 _apenas_admin_global = require_roles()  # nenhum código extra => só ADMIN_GLOBAL
-_pode_editar = require_roles(RoleCodigo.SUPERVISOR)
+_pode_editar = require_roles(RoleCodigo.SUPERVISOR, RoleCodigo.RT)
 
 
 @router.get("", response_model=list[UnidadeHospitalarOut])

@@ -1,19 +1,53 @@
 /** Rótulos e formatadores compartilhados pelo formulário público, pela
  * lista de formulários recebidos e pela visualização para impressão. */
-import type { FormularioSolicitacao } from "@/types";
+import type { FormularioSolicitacao, Modificacao, TipoHemocomponente } from "@/types";
 
 export const MODALIDADES: { valor: FormularioSolicitacao["modalidade"]; rotulo: string; dica?: string }[] = [
-  { valor: "EMERGENCIA", rotulo: "Emergência", dica: "Risco de vida" },
-  { valor: "URGENCIA", rotulo: "Urgência", dica: "Até 3 h" },
-  { valor: "ROTINA", rotulo: "Rotina", dica: "Até 24 h" },
   { valor: "PROGRAMADA", rotulo: "Programada" },
+  { valor: "ROTINA", rotulo: "Rotina", dica: "Até 24 h" },
+  { valor: "URGENCIA", rotulo: "Urgência", dica: "Até 3 h" },
+  { valor: "EMERGENCIA", rotulo: "Emergência", dica: "Risco à vida" },
 ];
 
 export const MODALIDADE_ROTULO: Record<string, string> = Object.fromEntries(MODALIDADES.map((m) => [m.valor, m.rotulo]));
 
-export const MODIFICACOES = ["Aliquotagem", "Filtração", "Irradiação", "Lavagem"] as const;
-
 export const RACAS = ["Branca", "Preta", "Parda", "Amarela", "Indígena"] as const;
+
+/** Unidades/enfermarias fixas desta unidade hospitalar (2026-09-30, pedido
+ * do cliente) — mesma lista validada no backend (SetorFixo, ver
+ * app/schemas/formulario_solicitacao.py). */
+export const SETORES = [
+  "UTI Neonatal", "UTI Pediátrica", "Enfermaria Pediátrica", "UCINCo", "Canguru", "UCINCa",
+  "Emergência Pediátrica", "Emergência Obstétrica", "Centro Obstétrico", "Centro Cirúrgico",
+  "Alojamento Conjunto",
+] as const;
+
+export const OPCOES_INDICACAO = [
+  { valor: "USO", rotulo: "Uso" },
+  { valor: "RESERVA", rotulo: "Reserva" },
+] as const;
+
+export const NOME_MODIFICACAO: Record<Modificacao, string> = {
+  ALI: "Aliquotagem",
+  FIL: "Filtração",
+  IRR: "Irradiação",
+  LAV: "Lavagem",
+};
+
+/** Os 4 hemocomponentes fixos do documento oficial (STH Rev.5), na ordem em
+ * que aparecem no papel — cada um só aceita as modificações que fazem
+ * sentido clinicamente para ele (mesma regra do backend, ver
+ * app/schemas/formulario_solicitacao.py MODIFICACOES_POR_TIPO). */
+export const HEMOCOMPONENTES: { tipo: TipoHemocomponente; nome: string; modificacoes: Modificacao[] }[] = [
+  { tipo: "CH", nome: "Concentrado de Hemácias", modificacoes: ["ALI", "FIL", "IRR", "LAV"] },
+  { tipo: "PF", nome: "Plasma Fresco", modificacoes: ["ALI"] },
+  { tipo: "CP", nome: "Concentrado de Plaquetas", modificacoes: ["ALI", "FIL", "IRR"] },
+  { tipo: "CR", nome: "Crioprecipitado", modificacoes: [] },
+];
+
+export const NOME_TIPO_HEMOCOMPONENTE: Record<TipoHemocomponente, string> = Object.fromEntries(
+  HEMOCOMPONENTES.map((h) => [h.tipo, h.nome]),
+) as Record<TipoHemocomponente, string>;
 
 /** "2026-09-28" -> "28/09/2026", sem passar por Date (evita erro de fuso). */
 export function formatarDataIso(iso: string | null | undefined): string {

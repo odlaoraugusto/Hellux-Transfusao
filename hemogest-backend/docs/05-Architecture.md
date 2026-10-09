@@ -81,12 +81,14 @@ Fonte única de verdade: **vetores SVG**, não mais o print do moodboard.
 | `assets/icons/icone512.png` | Ícone PWA de alta resolução 512×512 |
 | `assets/hemogest-moodboard-original.jpeg` | Referência histórica (paleta/tipografia/mockups) — mantido só como contexto, não usar como asset de produção |
 
-**Paleta oficial**
+**Paleta oficial** (2026-10-01, pedido do cliente: layout "meio aqua" em
+todo o sistema — cor primária trocada do vermelho institucional pro
+verde-água, mesmo tom já usado antes só no formulário público)
 | Cor | Hex | Uso |
 |---|---|---|
-| Vermelho Hemo | `#C62828` | Cor primária, ações e destaques |
-| Vermelho Escuro | `#8E1B1B` | Hover / estados ativos |
-| Vermelho Claro | `#E57373` | Alertas leves / incompatibilidades |
+| Verde-água | `#3E6E68` | Cor primária, ações e destaques |
+| Verde-água Escuro | `#2A4E49` | Hover / estados ativos |
+| Verde-água Claro | `#6FA69D` | Alertas leves / incompatibilidades |
 | Fundo | `#F7F8FA` | Background geral |
 | Branco | `#FFFFFF` | Cards / superfícies |
 | Cinza Texto | `#616161` | Texto secundário |

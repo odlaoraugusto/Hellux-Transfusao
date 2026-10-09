@@ -5,8 +5,11 @@ import type { Usuario } from "@/types";
 interface AuthContextValue {
   usuario: Usuario | null;
   carregando: boolean;
-  login: (email: string, senha: string) => Promise<void>;
+  login: (login: string, senha: string) => Promise<Usuario>;
   logout: () => void;
+  /** Rebusca /usuarios/me — usado depois de trocar a senha, pra
+   * `primeiro_acesso` virar false sem precisar deslogar e logar de novo. */
+  refrescarUsuario: () => Promise<void>;
   /** Unidade hospitalar cujo contexto está ativo nas chamadas à API.
    * Para a maioria dos perfis é fixa (a própria unidade do usuário). Só o
    * Administrador Global não tem unidade própria (atua sobre múltiplas) e
@@ -49,15 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [hidratarUsuario]);
 
   const login = useCallback(
-    async (email: string, senha: string) => {
+    async (usuarioLogin: string, senha: string) => {
       const tokens = await api.post<{ access_token: string; refresh_token: string }>("/auth/login", {
-        email,
+        login: usuarioLogin,
         senha,
       });
       setTokens(tokens.access_token, tokens.refresh_token);
       const eu = await api.get<Usuario>("/usuarios/me");
       setUsuario(eu);
       selecionarUnidadeAtiva(eu.unidade_hospitalar_id);
+      return eu;
     },
     [selecionarUnidadeAtiva],
   );
@@ -69,8 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(null);
   }, []);
 
+  const refrescarUsuario = useCallback(async () => {
+    const eu = await api.get<Usuario>("/usuarios/me");
+    setUsuario(eu);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ usuario, carregando, login, logout, unidadeAtivaId, selecionarUnidadeAtiva }}>
+    <AuthContext.Provider
+      value={{ usuario, carregando, login, logout, unidadeAtivaId, selecionarUnidadeAtiva, refrescarUsuario }}
+    >
       {children}
     </AuthContext.Provider>
   );

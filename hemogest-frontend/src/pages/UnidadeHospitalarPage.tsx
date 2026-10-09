@@ -14,6 +14,7 @@ interface FormState {
   endereco: string;
   cidade: string;
   uf: string;
+  telefone: string;
   ativo: boolean;
 }
 
@@ -25,6 +26,7 @@ const FORM_VAZIO: FormState = {
   endereco: "",
   cidade: "",
   uf: "",
+  telefone: "",
   ativo: true,
 };
 
@@ -37,6 +39,7 @@ function paraFormulario(u: UnidadeHospitalar): FormState {
     endereco: u.endereco ?? "",
     cidade: u.cidade ?? "",
     uf: u.uf ?? "",
+    telefone: u.telefone ?? "",
     ativo: u.ativo,
   };
 }
@@ -116,6 +119,7 @@ export function UnidadeHospitalarPage() {
           endereco: form.endereco || null,
           cidade: form.cidade || null,
           uf: form.uf || null,
+          telefone: form.telefone || null,
           ativo: form.ativo,
         });
       } else {
@@ -127,6 +131,7 @@ export function UnidadeHospitalarPage() {
           endereco: form.endereco || null,
           cidade: form.cidade || null,
           uf: form.uf || null,
+          telefone: form.telefone || null,
         });
       }
       fecharForm();
@@ -215,6 +220,15 @@ export function UnidadeHospitalarPage() {
                 maxLength={2}
                 value={form.uf}
                 onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase() })}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Telefone</label>
+              <input
+                value={form.telefone}
+                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                placeholder="(00) 0000-0000"
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
               />
             </div>

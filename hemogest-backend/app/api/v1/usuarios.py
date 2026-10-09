@@ -19,7 +19,7 @@ from app.services import user_service
 
 router = APIRouter(prefix="/usuarios", tags=["Usuários"])
 
-_pode_escrever = require_roles(RoleCodigo.SUPERVISOR)
+_pode_escrever = require_roles(RoleCodigo.SUPERVISOR, RoleCodigo.RT)
 
 
 @router.get("/me", response_model=UsuarioOut)
@@ -38,10 +38,9 @@ def listar_usuarios(
 
 @router.post("", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
 def criar_usuario(payload: UsuarioCreate, db: Session = Depends(get_db), user=Depends(_pode_escrever)):
-    usuario, _token_primeiro_acesso = user_service.create_user(db, payload, actor=user)
-    # _token_primeiro_acesso deve ser enviado por e-mail (Fase futura);
-    # por ora fica disponível ao service para o admin repassar manualmente.
-    return usuario
+    # payload.senha é a senha temporária definida por quem cria a conta —
+    # repassar por fora para a pessoa, que troca no primeiro login.
+    return user_service.create_user(db, payload, actor=user)
 
 
 @router.put("/{user_id}", response_model=UsuarioOut)

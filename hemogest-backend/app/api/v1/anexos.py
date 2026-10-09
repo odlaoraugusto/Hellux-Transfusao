@@ -16,17 +16,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
 from app.models.anexo import Anexo
-from app.models.role import RoleCodigo
 from app.schemas.anexo import AnexoDownloadOut, AnexoOut
 from app.services import anexo_service
 from app.services.storage import LocalStorageService, get_storage_service, verify_local_token
 
 router = APIRouter(prefix="/anexos", tags=["Anexos"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("anexos_gerenciar")
 
 
 def _nome_arquivo_seguro(nome: str) -> str:

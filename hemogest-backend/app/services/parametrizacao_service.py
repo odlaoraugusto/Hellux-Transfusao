@@ -1,9 +1,10 @@
 """
 HemoGest — Service genérico para o bloco Parametrização.
-As 5 entidades (Hemocomponente, MotivoDevolucao, MotivoDescarte, TipoReacao,
-Gravidade) têm CRUD idêntico: isolado por unidade, com soft delete e
-auditoria. Em vez de repetir a mesma função 5 vezes, parametrizamos pela
-classe do model — cada router chama estas funções passando seu Model.
+As 4 entidades (Hemocomponente, MotivoDevolucao — motivos de devolução E
+descarte, 2026-10-05, pedido do cliente —, TipoReacao, Gravidade) têm CRUD
+idêntico: isolado por unidade, com soft delete e auditoria. Em vez de
+repetir a mesma função 4 vezes, parametrizamos pela classe do model —
+cada router chama estas funções passando seu Model.
 """
 import uuid
 from typing import TypeVar

@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import type { FormularioSolicitacao } from "@/types";
-import { MODALIDADE_ROTULO, calcularIdade, formatarDataIso, formatarHora, formatarPeso } from "@/lib/formulario";
+import { MODALIDADE_ROTULO, NOME_MODIFICACAO, calcularIdade, formatarDataIso, formatarHora, formatarPeso } from "@/lib/formulario";
+import { nomeExibicaoTipo } from "@/lib/gerarPdfSolicitacao";
 
 /**
- * Layout de impressão GENÉRICO do formulário de solicitação de transfusão:
- * só lista os dados gravados, agrupados por seção. O layout definitivo do
- * papel ainda não foi definido; quando for, troque apenas este componente
- * (ele recebe o registro completo, `dados`, e é usado pelas duas telas de
- * impressão: a pública, por token, e a da agência).
+ * Layout de impressão do formulário de solicitação de transfusão: lista os
+ * dados gravados, agrupados por seção — apoio visual em tela. O documento
+ * que sai impresso/baixado de verdade é o PDF oficial (STH Rev.5, ver
+ * `lib/gerarPdfSolicitacao.ts`), gerado à parte por `ImpressaoFormularioPage`.
  */
 
 type Linha = [rotulo: string, valor: ReactNode];
@@ -33,8 +33,15 @@ function Bloco({ titulo, linhas }: { titulo: string; linhas: Linha[] }) {
 export function FormularioImpressao({ dados }: { dados: FormularioSolicitacao }) {
   const { estabelecimento: est } = dados;
   const endereco = [est.endereco, [est.cidade, est.uf].filter(Boolean).join(" - ")].filter(Boolean).join(", ");
+  const enderecoPaciente = [
+    [dados.logradouro, dados.numero].filter(Boolean).join(", "),
+    dados.bairro,
+    [dados.cidade, dados.uf].filter(Boolean).join(" - "),
+    dados.cep,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const registradoEm = new Date(dados.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-  const termos = [dados.termo_heterogrupo_medico, dados.termo_heterogrupo_crm, dados.termo_emergencia_medico, dados.termo_emergencia_crm].some(Boolean);
 
   return (
     <article className="mx-auto w-full max-w-[210mm] bg-white px-[10mm] py-[8mm] font-sans text-neutral-900 print:max-w-none print:p-0" aria-label={`Solicitação de transfusão ${dados.protocolo}`}>
@@ -64,6 +71,9 @@ export function FormularioImpressao({ dados }: { dados: FormularioSolicitacao })
         titulo="Paciente"
         linhas={[
           ["Nome", dados.nome_paciente],
+          ["Nome social", dados.nome_social],
+          ["CPF", dados.cpf && (dados.cpf_e_da_mae ? `(Mãe) ${dados.cpf}` : dados.cpf)],
+          ["Cartão SUS (CNS)", dados.cns],
           ["Prontuário", dados.prontuario],
           ["Sexo", dados.sexo],
           ["Data de nascimento", `${formatarDataIso(dados.data_nascimento)} (${calcularIdade(dados.data_nascimento, dados.data_solicitacao)})`],
@@ -71,7 +81,8 @@ export function FormularioImpressao({ dados }: { dados: FormularioSolicitacao })
           ["Raça / cor", dados.raca_cor],
           ["Unidade / enfermaria", dados.setor_nome],
           ["Leito", dados.leito],
-          ["Peso", formatarPeso(dados.peso_kg)],
+          ["Peso", dados.peso_kg != null ? formatarPeso(dados.peso_kg) : null],
+          ["Endereço", enderecoPaciente],
           ["Data e horário da solicitação", `${formatarDataIso(dados.data_solicitacao)} às ${formatarHora(dados.hora_solicitacao)}`],
         ]}
       />
@@ -87,9 +98,9 @@ export function FormularioImpressao({ dados }: { dados: FormularioSolicitacao })
         ]}
       />
       <Bloco
-        titulo="Histórico transfusional e indicação"
+        titulo="Histórico transfusional"
         linhas={[
-          ["Indicação", dados.indicacao === "USO" ? "Uso" : "Reserva"],
+          ["Indicação transfusional", dados.indicacao === "USO" ? "Uso" : "Reserva"],
           ["Antecedentes transfusionais", sn(dados.antecedentes_transfusionais)],
           ["Antecedentes obstétricos", dados.sexo === "F" ? sn(dados.antecedentes_obstetricos) : "Não se aplica"],
           ["Reação transfusional prévia", sn(dados.reacao_previa)],
@@ -101,26 +112,20 @@ export function FormularioImpressao({ dados }: { dados: FormularioSolicitacao })
         linhas={[
           ...dados.itens.map(
             (item, i): Linha => [
-              `${i + 1}. ${item.hemocomponente_sigla ?? item.hemocomponente_nome}`,
+              `${i + 1}. ${nomeExibicaoTipo(item.tipo)}`,
               [
-                `${item.hemocomponente_nome}: ${item.quantidade} ${item.unidade_medida === "ML" ? "mL" : item.quantidade === 1 ? "unidade" : "unidades"}`,
-                item.modificacoes.length ? `Modificação: ${item.modificacoes.join(", ")}` : "Sem modificação",
+                `${item.quantidade} ${item.unidade_medida === "ML" ? "mL" : item.quantidade === 1 ? "unidade" : "unidades"}`,
+                item.modificacoes.length ? `Modificação: ${item.modificacoes.map((m) => NOME_MODIFICACAO[m]).join(", ")}` : "Sem modificação",
               ].join("\n"),
             ],
           ),
           ["Modalidade", MODALIDADE_ROTULO[dados.modalidade]],
+          ...(dados.modalidade === "PROGRAMADA"
+            ? ([["Data/hora programada", `${formatarDataIso(dados.data_programada)} às ${formatarHora(dados.hora_programada)}`]] as Linha[])
+            : []),
           ["Observações", dados.observacoes],
         ]}
       />
-      {termos && (
-        <Bloco
-          titulo="Termos"
-          linhas={[
-            ["Transfusão heterogrupo: médico", [dados.termo_heterogrupo_medico, dados.termo_heterogrupo_crm && `CRM ${dados.termo_heterogrupo_crm}`].filter(Boolean).join(" · ") || null],
-            ["Emergência: médico", [dados.termo_emergencia_medico, dados.termo_emergencia_crm && `CRM ${dados.termo_emergencia_crm}`].filter(Boolean).join(" · ") || null],
-          ]}
-        />
-      )}
       <Bloco
         titulo="Médico requisitante"
         linhas={[

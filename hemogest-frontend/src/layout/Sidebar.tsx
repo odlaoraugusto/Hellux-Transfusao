@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Building2,
   Users,
-  Droplet,
   Activity,
   AlertTriangle,
   Undo2,
@@ -10,20 +9,32 @@ import {
   Gauge,
   SlidersHorizontal,
   UserCog,
+  ShieldCheck,
   History,
   ClipboardList,
-  FileText,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
+import { useAuth } from "@/hooks/useAuth";
+import { podeGerenciarPermissoes, rotaPermitidaParaRole } from "@/lib/permissoes";
 
+// "Formulários recebidos" saiu do menu (2026-09-30, pedido do cliente) — o
+// formulário público já cria a Solicitação automaticamente, então a fila de
+// trabalho de verdade é só a de Solicitações; a tela em si continua
+// acessível por link direto (histórico do que foi digitado).
+//
+// "Hemocomponentes" (controle de bolsas/estoque) também saiu do menu — sem
+// uso real neste hospital por enquanto (2026-09-30, pedido do cliente: "por
+// enquanto não teremos estoque de bolsas"). A tela e as rotas continuam
+// existindo, só não aparecem no menu; reativar é só devolver a linha abaixo
+// (`{ to: "/hemocomponentes", label: "Hemocomponentes", icone: Droplet }`,
+// precisa importar `Droplet` de novo) e reconectar Acompanhamento à bolsa
+// de verdade se fizer sentido na hora.
 const ITENS = [
   { to: "/", label: "Dashboard", icone: LayoutDashboard },
   { to: "/unidade", label: "Unidade Hospitalar", icone: Building2 },
   { to: "/pacientes", label: "Pacientes", icone: Users },
-  { to: "/hemocomponentes", label: "Hemocomponentes", icone: Droplet },
   { to: "/solicitacoes", label: "Solicitações", icone: ClipboardList },
-  { to: "/formularios", label: "Formulários recebidos", icone: FileText },
   { to: "/acompanhamentos", label: "Acompanhamento", icone: Activity },
   { to: "/reacoes", label: "Reações Transfusionais", icone: AlertTriangle },
   { to: "/devolucoes-descartes", label: "Devoluções / Descartes", icone: Undo2 },
@@ -35,6 +46,12 @@ const ITENS = [
 ];
 
 export function Sidebar() {
+  const { usuario } = useAuth();
+  const base = ITENS.filter((item) => rotaPermitidaParaRole(usuario?.role_codigo, item.to));
+  const itens = podeGerenciarPermissoes(usuario?.role_codigo)
+    ? [...base, { to: "/permissoes", label: "Permissões", icone: ShieldCheck }]
+    : base;
+
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-neutral-200 bg-surface-card">
       <div className="flex items-center gap-2 px-5 py-5">
@@ -46,7 +63,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-        {ITENS.map(({ to, label, icone: Icone }) => (
+        {itens.map(({ to, label, icone: Icone }) => (
           <NavLink
             key={to}
             to={to}
@@ -63,6 +80,13 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Identidade institucional desta unidade (2026-09-30, pedido do
+       * cliente) — fixa, não é um logo configurável por tenant. */}
+      <div className="flex items-center justify-center gap-2 border-t border-neutral-200 px-4 py-3">
+        <img src="/brand/logo-hospital-joaquim-sampaio.png" alt="Hospital Materno-Infantil Dr. Joaquim Sampaio" className="h-7 w-auto rounded bg-white/90 px-1.5 py-1" />
+        <img src="/brand/logo-fesf-sus.png" alt="FESF-SUS" className="h-6 w-auto rounded bg-white/90 px-1.5 py-1" />
+      </div>
     </aside>
   );
 }

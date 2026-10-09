@@ -5,3 +5,9 @@
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Log de atividade do serviço em produção (NSSM AppStdout/AppStderr) —
+# operacional, não faz parte do código (mesmo padrão do Almoxarifado/
+# Estoque Farmácia).
+hemogest-backend/api-erro.log
+hemogest-backend/api-out.log

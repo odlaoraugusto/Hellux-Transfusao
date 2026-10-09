@@ -18,6 +18,9 @@ from app.schemas.formulario_solicitacao import (
     FormularioCreate,
     FormularioCriadoOut,
     FormularioOut,
+    MedicoLookupOut,
+    PacienteBuscaOut,
+    PacientePrefillOut,
 )
 from app.services import formulario_solicitacao_service as svc
 
@@ -29,6 +32,39 @@ router = APIRouter(prefix="/publico", tags=["Público — Formulário de Solicit
 def configuracao(unidade_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
     """Dados para montar a tela: estabelecimento, hemocomponentes ativos e setores."""
     return svc.config_publica(db, unidade_id)
+
+
+@router.get("/unidades/{unidade_id}/paciente-por-prontuario", response_model=PacientePrefillOut | None)
+@limiter.limit("10/minute;60/hour")
+def paciente_por_prontuario(unidade_id: uuid.UUID, prontuario: str, request: Request, db: Session = Depends(get_db)):
+    """Pré-preenchimento pelo prontuário já cadastrado nesta unidade
+    (2026-10-01, pedido do cliente) — None (sem erro) quando não acha
+    ninguém, pra não dar pista de prontuário existente/inexistente."""
+    svc.get_unidade_ativa(db, unidade_id)
+    return svc.buscar_paciente_por_prontuario(
+        db, unidade_id, prontuario, ip_origem=request.client.host if request.client else None
+    )
+
+
+@router.get("/unidades/{unidade_id}/pacientes/buscar", response_model=list[PacienteBuscaOut])
+@limiter.limit("10/minute;60/hour")
+def pacientes_buscar(unidade_id: uuid.UUID, nome: str, request: Request, db: Session = Depends(get_db)):
+    """Busca por nome (2026-10-02, pedido do cliente) — pra quando o
+    prontuário não é conhecido na hora (ex.: contingência). Só nome/
+    nascimento/prontuário na lista; dado completo só depois, reabrindo
+    pelo prontuário escolhido."""
+    svc.get_unidade_ativa(db, unidade_id)
+    return svc.buscar_pacientes_por_nome(db, unidade_id, nome)
+
+
+@router.get("/unidades/{unidade_id}/medico-por-crm", response_model=MedicoLookupOut | None)
+@limiter.limit("30/minute;200/hour")
+def medico_por_crm(unidade_id: uuid.UUID, crm: str, request: Request, db: Session = Depends(get_db)):
+    """Pré-preenchimento do nome do médico pelo CRM (2026-10-02, pedido do
+    cliente: "pede primeiro o crm, pq aí já puxa o nome completo")."""
+    svc.get_unidade_ativa(db, unidade_id)
+    nome = svc.buscar_medico_por_crm(db, unidade_id, crm)
+    return {"nome": nome} if nome else None
 
 
 @router.post(

@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     # --- Segurança / JWT ---
     JWT_SECRET_KEY: str = Field(..., description="Chave secreta para assinatura dos tokens", min_length=32)
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # --- Criptografia de campo (dados sensíveis de paciente) ---
     # Segredo mestre — nunca usado diretamente, sempre via HKDF em

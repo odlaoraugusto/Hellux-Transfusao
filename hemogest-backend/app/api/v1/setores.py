@@ -11,7 +11,7 @@ from app.schemas.setor import SetorCreate, SetorOut, SetorUpdate
 from app.services import setor_service
 
 router = APIRouter(prefix="/setores", tags=["Parametrização — Setores"])
-_pode_escrever = require_roles(RoleCodigo.SUPERVISOR)
+_pode_escrever = require_roles(RoleCodigo.SUPERVISOR, RoleCodigo.RT)
 
 
 @router.get("", response_model=list[SetorOut])

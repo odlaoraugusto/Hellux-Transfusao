@@ -1,28 +1,55 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, Plus, Printer, Trash2 } from "lucide-react";
+import { CheckCircle2, Printer } from "lucide-react";
 import clsx from "clsx";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
-import { MODALIDADES, MODIFICACOES, RACAS, calcularIdade } from "@/lib/formulario";
+import { HEMOCOMPONENTES, MODALIDADES, NOME_MODIFICACAO, OPCOES_INDICACAO, RACAS, SETORES, calcularIdade } from "@/lib/formulario";
+import type { Modificacao, TipoHemocomponente } from "@/types";
 
 /**
- * Formulário público de solicitação de transfusão (sem login). O link leva o
- * id da unidade hospitalar; ao enviar, o formulário é gravado e a pessoa
- * recebe um link para abrir a visualização de impressão.
+ * Formulário público de solicitação de transfusão (sem login) — mesmo
+ * layout de campos do documento oficial STH Rev.5 (2026-09-30, pedido do
+ * cliente). O link leva o id da unidade hospitalar; ao enviar, o
+ * formulário é gravado e a pessoa recebe um link para abrir e baixar o PDF
+ * oficial já preenchido (ver lib/gerarPdfSolicitacao.ts).
  */
 
 interface Configuracao {
   estabelecimento: { nome: string; cnes: string | null; endereco: string | null; cidade: string | null; uf: string | null };
-  hemocomponentes: { id: string; nome: string; sigla: string | null }[];
-  setores: string[];
 }
 
-interface ItemForm {
-  hemocomponente_id: string;
+interface PacientePrefill {
+  nome_paciente: string;
+  nome_social: string | null;
+  cpf: string | null;
+  cpf_e_da_mae: boolean;
+  cns: string | null;
+  sexo: string | null;
+  data_nascimento: string | null;
+  nome_mae: string | null;
+  raca_cor: string | null;
+  peso_kg: number | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  codigo_ibge: string | null;
+}
+
+interface CandidatoNome {
+  numero_prontuario: string;
+  nome_paciente: string;
+  data_nascimento: string | null;
+}
+
+interface ItemHemocomponente {
+  selecionado: boolean;
   quantidade: string;
   unidade_medida: "UNIDADE" | "ML";
-  modificacoes: string[];
+  modificacoes: Modificacao[];
 }
 
 type Sn = "" | "sim" | "nao";
@@ -32,6 +59,10 @@ interface FormState {
   data_solicitacao: string;
   hora_solicitacao: string;
   nome_paciente: string;
+  cpf: string;
+  cpf_e_da_mae: boolean;
+  cns: string;
+  nome_social: string;
   prontuario: string;
   sexo: "" | "M" | "F";
   data_nascimento: string;
@@ -40,6 +71,13 @@ interface FormState {
   setor_nome: string;
   leito: string;
   peso_kg: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+  codigo_ibge: string;
   diagnostico: string;
   hb: string;
   ht: string;
@@ -51,44 +89,49 @@ interface FormState {
   antecedentes_obstetricos: Sn;
   reacao_previa: Sn;
   reacao_previa_descricao: string;
-  itens: ItemForm[];
+  itens: Record<TipoHemocomponente, ItemHemocomponente>;
   modalidade: string;
+  data_programada: string;
+  hora_programada: string;
   observacoes: string;
-  termo_heterogrupo_medico: string;
-  termo_heterogrupo_crm: string;
-  termo_emergencia_medico: string;
-  termo_emergencia_crm: string;
   medico_nome: string;
   medico_crm: string;
   website: string; // isca para robôs, nunca aparece na tela
 }
 
-const MAX_ITENS = 3;
-const ITEM_VAZIO: ItemForm = { hemocomponente_id: "", quantidade: "", unidade_medida: "UNIDADE", modificacoes: [] };
+const ITEM_VAZIO: ItemHemocomponente = { selecionado: false, quantidade: "", unidade_medida: "UNIDADE", modificacoes: [] };
+
+const UFS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
 
 const ROTULOS: Record<string, string> = {
   nome_paciente: "Nome completo do paciente",
+  cpf: "CPF",
+  cns: "Cartão SUS (CNS)",
   prontuario: "Nº do prontuário",
   sexo: "Sexo",
   data_nascimento: "Data de nascimento",
-  nome_mae: "Nome da mãe",
-  raca_cor: "Raça / cor",
   setor_nome: "Unidade / enfermaria",
-  leito: "Leito",
-  peso_kg: "Peso",
-  data_solicitacao: "Data da solicitação",
-  hora_solicitacao: "Horário",
   diagnostico: "Diagnóstico",
+  nome_mae: "Nome da genitora",
+  cep: "CEP",
+  logradouro: "Logradouro",
+  numero: "Número",
+  cidade: "Cidade",
+  uf: "Estado",
   hb: "Hb",
   ht: "Ht",
-  plaquetas: "Plaquetas",
-  indicacao: "Indicação (uso ou reserva)",
-  antecedentes_transfusionais: "Antecedentes transfusionais",
+  indicacao: "Indicação transfusional",
+  antecedentes_transfusionais: "Antecedente transfusional",
   antecedentes_obstetricos: "Antecedentes obstétricos",
   reacao_previa: "Reação transfusional prévia",
-  reacao_previa_descricao: "Descrição da reação anterior",
-  itens: "Hemocomponente",
+  reacao_previa_descricao: "Especificação da reação prévia",
+  itens: "Ao menos um hemocomponente, com a quantidade",
   modalidade: "Modalidade da transfusão",
+  data_programada: "Data programada",
+  hora_programada: "Hora programada",
   medico_nome: "Nome do médico solicitante",
   medico_crm: "CRM do médico",
 };
@@ -99,6 +142,10 @@ function agora(): { data: string; hora: string } {
   return { data: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, hora: `${p(d.getHours())}:${p(d.getMinutes())}` };
 }
 
+function itensVazios(): Record<TipoHemocomponente, ItemHemocomponente> {
+  return { CH: { ...ITEM_VAZIO }, PF: { ...ITEM_VAZIO }, CP: { ...ITEM_VAZIO }, CR: { ...ITEM_VAZIO } };
+}
+
 function estadoInicial(): FormState {
   const { data, hora } = agora();
   return {
@@ -106,6 +153,10 @@ function estadoInicial(): FormState {
     data_solicitacao: data,
     hora_solicitacao: hora,
     nome_paciente: "",
+    cpf: "",
+    cpf_e_da_mae: false,
+    cns: "",
+    nome_social: "",
     prontuario: "",
     sexo: "",
     data_nascimento: "",
@@ -114,6 +165,13 @@ function estadoInicial(): FormState {
     setor_nome: "",
     leito: "",
     peso_kg: "",
+    cep: "",
+    logradouro: "",
+    numero: "",
+    bairro: "",
+    cidade: "",
+    uf: "",
+    codigo_ibge: "",
     diagnostico: "",
     hb: "",
     ht: "",
@@ -125,17 +183,74 @@ function estadoInicial(): FormState {
     antecedentes_obstetricos: "",
     reacao_previa: "",
     reacao_previa_descricao: "",
-    itens: [{ ...ITEM_VAZIO }],
+    itens: itensVazios(),
     modalidade: "",
+    data_programada: "",
+    hora_programada: "",
     observacoes: "",
-    termo_heterogrupo_medico: "",
-    termo_heterogrupo_crm: "",
-    termo_emergencia_medico: "",
-    termo_emergencia_crm: "",
     medico_nome: "",
     medico_crm: "",
     website: "",
   };
+}
+
+/** Prontuário só aceita número (2026-10-01, pedido do cliente: colar
+ * "17344/1" deve virar "173441" — descarta qualquer símbolo colado junto). */
+function somenteDigitos(v: string): string {
+  return v.replace(/\D/g, "");
+}
+
+function mascararCpf(v: string): string {
+  const digitos = v.replace(/\D/g, "").slice(0, 11);
+  return digitos.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function mascararCns(v: string): string {
+  const digitos = v.replace(/\D/g, "").slice(0, 15);
+  return digitos.replace(/(\d{3})(\d)/, "$1 $2").replace(/(\d{4})(\d)/, "$1 $2").replace(/(\d{4})(\d{1,4})$/, "$1 $2");
+}
+
+function mascararCep(v: string): string {
+  const digitos = v.replace(/\D/g, "").slice(0, 8);
+  return digitos.length > 5 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : digitos;
+}
+
+/** "8" -> "8,0", "8.53" -> "8,5" — sempre uma casa decimal, ao sair do
+ * campo (2026-09-30, pedido do cliente). Deixa em branco intocado. */
+function formatarUmaCasaDecimal(v: string): string {
+  const limpo = v.trim().replace(",", ".");
+  if (!limpo) return v;
+  const n = Number(limpo);
+  if (Number.isNaN(n)) return v;
+  return n.toFixed(1).replace(".", ",");
+}
+
+/** "150000" -> "150.000" — separador de milhar, ao sair do campo
+ * (2026-09-30, pedido do cliente). */
+function formatarMilhar(v: string): string {
+  const digitos = v.replace(/\D/g, "");
+  if (!digitos) return v;
+  return digitos.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/** Confere os dígitos verificadores de verdade (2026-10-02, pedido do
+ * cliente: "caso digitem 000.000.000-00... trava também") — só contar 11
+ * dígitos deixava passar qualquer sequência digitada só pra vencer a
+ * obrigatoriedade do campo. */
+function cpfValido(cpf: string): boolean {
+  const d = cpf.replace(/\D/g, "");
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const digitoVerificador = (tamanho: number) => {
+    let soma = 0;
+    for (let i = 0; i < tamanho; i++) soma += Number(d[i]) * (tamanho + 1 - i);
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digitoVerificador(9) === Number(d[9]) && digitoVerificador(10) === Number(d[10]);
+}
+
+function maiusculo(v: string): string {
+  return v.toUpperCase();
 }
 
 function validar(f: FormState): Record<string, string> {
@@ -146,35 +261,48 @@ function validar(f: FormState): Record<string, string> {
     else if (tamanho < minimo) e[campo] = `Mínimo de ${minimo} caracteres.`;
   };
   obrigatorio("nome_paciente", 3);
-  obrigatorio("prontuario");
+  // Prontuário fica marcado como obrigatório (pedido oficialmente a quem
+  // preenche), mas não trava o envio — 2026-10-02, pedido do cliente:
+  // "quando tiver na contingência sem sistema, isso não ser uma trava".
   obrigatorio("nome_mae", 3);
   obrigatorio("setor_nome", 2);
-  obrigatorio("leito");
   obrigatorio("diagnostico", 2);
   obrigatorio("hb");
   obrigatorio("ht");
-  obrigatorio("plaquetas");
   obrigatorio("medico_nome", 3);
   obrigatorio("medico_crm", 2);
   obrigatorio("data_solicitacao");
   obrigatorio("hora_solicitacao");
+  if (f.cep.replace(/\D/g, "").length !== 8) e.cep = "CEP precisa ter 8 dígitos.";
+  obrigatorio("logradouro", 2);
+  obrigatorio("numero");
+  obrigatorio("cidade", 2);
+  if (f.uf.length !== 2) e.uf = "Selecione o estado.";
   if (!f.sexo) e.sexo = "Selecione o sexo.";
-  if (!f.raca_cor) e.raca_cor = "Selecione a raça / cor.";
   if (!f.data_nascimento) e.data_nascimento = "Informe a data de nascimento.";
   else if (f.data_nascimento > agora().data) e.data_nascimento = "Data de nascimento no futuro.";
-  const peso = Number(f.peso_kg);
-  if (!f.peso_kg || !(peso > 0) || peso > 500) e.peso_kg = "Informe o peso em kg (ex.: 2,85).";
+  if (!cpfValido(f.cpf)) e.cpf = "CPF inválido.";
+  // CNS fica marcado como obrigatório (pedido oficialmente a quem
+  // preenche), mas não trava o envio — mesmo motivo do prontuário
+  // (2026-10-02, pedido do cliente: "alguns já estão atualizados pro
+  // número do CPF").
+  if (f.cns.trim() && f.cns.replace(/\D/g, "").length !== 15) e.cns = "Cartão SUS (CNS) precisa ter 15 dígitos.";
   if (!f.indicacao) e.indicacao = "Escolha uso ou reserva.";
   if (!f.antecedentes_transfusionais) e.antecedentes_transfusionais = "Responda sim ou não.";
   if (f.sexo === "F" && !f.antecedentes_obstetricos) e.antecedentes_obstetricos = "Responda sim ou não.";
   if (!f.reacao_previa) e.reacao_previa = "Responda sim ou não.";
   if (f.reacao_previa === "sim" && !f.reacao_previa_descricao.trim()) e.reacao_previa_descricao = "Descreva a reação.";
   if (!f.modalidade) e.modalidade = "Escolha a modalidade.";
-  f.itens.forEach((item, i) => {
-    if (!item.hemocomponente_id) e[`itens.${i}.hemocomponente_id`] = "Selecione o hemocomponente.";
-    const q = Number(item.quantidade);
-    const limite = item.unidade_medida === "UNIDADE" ? 20 : 2000;
-    if (!Number.isInteger(q) || q < 1 || q > limite) e[`itens.${i}.quantidade`] = `Informe de 1 a ${limite}.`;
+  if (f.modalidade === "PROGRAMADA") {
+    if (!f.data_programada) e.data_programada = "Informe a data programada.";
+    if (!f.hora_programada) e.hora_programada = "Informe a hora programada.";
+  }
+  const selecionados = (Object.keys(f.itens) as TipoHemocomponente[]).filter((k) => f.itens[k].selecionado);
+  if (selecionados.length === 0) e.itens = "Marque ao menos um hemocomponente.";
+  selecionados.forEach((k) => {
+    const q = Number(f.itens[k].quantidade);
+    const limite = f.itens[k].unidade_medida === "UNIDADE" ? 20 : 2000;
+    if (!q || q < 1 || q > limite) e[`itens.${k}`] = `Informe a quantidade de 1 a ${limite}.`;
   });
   return e;
 }
@@ -198,12 +326,12 @@ function errosDoServidor(body: unknown): string[] {
 }
 
 const campoBase =
-  "w-full rounded-lg border bg-surface-card px-3 py-2 text-sm text-ink focus:border-hemo focus:outline-none focus:ring-2 focus:ring-hemo/20";
+  "w-full rounded-lg border bg-surface-card px-3 py-2 text-sm text-ink focus:border-formpub focus:outline-none focus:ring-2 focus:ring-formpub/20";
 
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
-    <section className="relative rounded-card border border-hemo/40 bg-surface-card px-4 pb-4 pt-6 shadow-sm">
-      <h2 className="absolute -top-3 left-4 rounded bg-hemo px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-white">{titulo}</h2>
+    <section className="relative rounded-card border border-formpub/40 bg-surface-card px-4 pb-4 pt-6 shadow-sm">
+      <h2 className="absolute -top-3 left-4 rounded bg-formpub px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-white">{titulo}</h2>
       {children}
     </section>
   );
@@ -212,7 +340,7 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
 function Campo({ id, rotulo, erro, dica, children, className }: { id?: string; rotulo: string; erro?: string; dica?: string; children: ReactNode; className?: string }) {
   return (
     <div className={className} data-erro={erro ? "true" : undefined}>
-      <label htmlFor={id} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-hemo">
+      <label htmlFor={id} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-formpub">
         {rotulo}
       </label>
       {children}
@@ -245,7 +373,7 @@ function Escolha({
 }) {
   return (
     <fieldset className={className} data-erro={erro ? "true" : undefined}>
-      <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-hemo">{rotulo}</legend>
+      <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-formpub">{rotulo}</legend>
       <div className="flex flex-wrap gap-x-5 gap-y-1.5 py-1">
         {opcoes.map((o) => (
           <label key={o.valor} className="flex cursor-pointer items-center gap-1.5 text-sm text-ink">
@@ -255,7 +383,7 @@ function Escolha({
               value={o.valor}
               checked={valor === o.valor}
               onChange={() => onChange(o.valor)}
-              className="h-4 w-4 accent-hemo"
+              className="h-4 w-4 accent-formpub"
             />
             {o.rotulo}
             {o.dica && <span className="text-xs text-ink-muted">({o.dica})</span>}
@@ -282,6 +410,12 @@ export function SolicitarTransfusaoPage() {
   const [errosServidor, setErrosServidor] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [gravado, setGravado] = useState<{ protocolo: string; token: string } | null>(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [buscandoProntuario, setBuscandoProntuario] = useState(false);
+  const [prontuarioEncontrado, setProntuarioEncontrado] = useState(false);
+  const [buscandoNome, setBuscandoNome] = useState(false);
+  const [resultadosNome, setResultadosNome] = useState<CandidatoNome[]>([]);
+  const [buscandoMedico, setBuscandoMedico] = useState(false);
 
   useEffect(() => {
     document.title = "Solicitação de transfusão";
@@ -302,14 +436,143 @@ export function SolicitarTransfusaoPage() {
     if (erros[campo as string]) setErros((e) => ({ ...e, [campo as string]: "" }));
   }
 
-  function definirItem(indice: number, parcial: Partial<ItemForm>) {
-    setForm((f) => ({ ...f, itens: f.itens.map((it, i) => (i === indice ? { ...it, ...parcial } : it)) }));
-    setErros((e) => ({ ...e, [`itens.${indice}.hemocomponente_id`]: "", [`itens.${indice}.quantidade`]: "" }));
+  /** Busca logradouro/bairro/cidade/UF/IBGE pelo CEP (ViaCEP), assim que os
+   * 8 dígitos são preenchidos — só o número continua manual (2026-09-30,
+   * pedido do cliente). */
+  async function buscarCep(valor: string) {
+    const digitos = valor.replace(/\D/g, "");
+    if (digitos.length !== 8) return;
+    setBuscandoCep(true);
+    setErros((e) => ({ ...e, cep: "" }));
+    try {
+      const resp = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
+      const dados = await resp.json();
+      if (dados.erro) {
+        setErros((e) => ({ ...e, cep: "CEP não encontrado." }));
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        logradouro: (dados.logradouro || "").toUpperCase(),
+        bairro: (dados.bairro || "").toUpperCase(),
+        cidade: (dados.localidade || "").toUpperCase(),
+        uf: dados.uf || "",
+        codigo_ibge: dados.ibge || "",
+      }));
+    } catch {
+      setErros((e) => ({ ...e, cep: "Não foi possível buscar o CEP. Preencha o endereço manualmente." }));
+    } finally {
+      setBuscandoCep(false);
+    }
   }
 
-  function alternarModificacao(indice: number, m: string) {
-    const atuais = form.itens[indice].modificacoes;
-    definirItem(indice, { modificacoes: atuais.includes(m) ? atuais.filter((x) => x !== m) : [...atuais, m] });
+  /** Aplica os dados achados (por prontuário ou, depois de escolher na
+   * lista, por nome) — só completa o que ainda está em branco, nunca
+   * sobrescreve o que a pessoa já digitou (2026-10-01, pedido do
+   * cliente: "não importa os dados salvos do paciente"). */
+  function aplicarPrefill(dados: PacientePrefill) {
+    setForm((f) => ({
+      ...f,
+      nome_paciente: f.nome_paciente || dados.nome_paciente.toUpperCase(),
+      nome_social: f.nome_social || (dados.nome_social ?? "").toUpperCase(),
+      cpf: f.cpf || (dados.cpf ? mascararCpf(dados.cpf) : ""),
+      cpf_e_da_mae: f.cpf_e_da_mae || dados.cpf_e_da_mae,
+      cns: f.cns || (dados.cns ? mascararCns(dados.cns) : ""),
+      sexo: f.sexo || (dados.sexo === "M" || dados.sexo === "F" ? dados.sexo : f.sexo),
+      data_nascimento: f.data_nascimento || dados.data_nascimento || "",
+      nome_mae: f.nome_mae || (dados.nome_mae ?? "").toUpperCase(),
+      raca_cor: f.raca_cor || dados.raca_cor || "",
+      peso_kg: f.peso_kg || (dados.peso_kg != null ? String(dados.peso_kg) : ""),
+      cep: f.cep || (dados.cep ? mascararCep(dados.cep) : ""),
+      logradouro: f.logradouro || (dados.logradouro ?? "").toUpperCase(),
+      numero: f.numero || (dados.numero ?? "").toUpperCase(),
+      bairro: f.bairro || (dados.bairro ?? "").toUpperCase(),
+      cidade: f.cidade || (dados.cidade ?? "").toUpperCase(),
+      uf: f.uf || (dados.uf ?? ""),
+      codigo_ibge: f.codigo_ibge || (dados.codigo_ibge ?? ""),
+    }));
+  }
+
+  /** Pré-preenche com os dados já cadastrados desse prontuário nesta
+   * unidade. */
+  async function buscarPorProntuario(valor: string) {
+    const digitos = valor.replace(/\D/g, "");
+    setProntuarioEncontrado(false);
+    if (!digitos) return;
+    setBuscandoProntuario(true);
+    try {
+      const dados = await api.get<PacientePrefill | null>(
+        `/publico/unidades/${unidadeId}/paciente-por-prontuario?prontuario=${encodeURIComponent(digitos)}`,
+      );
+      if (!dados) return;
+      setProntuarioEncontrado(true);
+      aplicarPrefill(dados);
+    } catch {
+      /* sem cadastro prévio pra esse prontuário (ou falha de rede) — segue com o formulário em branco */
+    } finally {
+      setBuscandoProntuario(false);
+    }
+  }
+
+  /** Busca por nome (2026-10-02, pedido do cliente: "quando ficamos sem
+   * sistema, não temos prontuário de alguns pacientes") — só dispara se o
+   * prontuário ainda estiver em branco (sinal de que não é conhecido) e
+   * sempre pede confirmação na lista antes de aplicar, já que nome não é
+   * chave única como o prontuário (teria risco de puxar os dados da
+   * criança errada). */
+  async function buscarPorNome(valor: string) {
+    setResultadosNome([]);
+    if (form.prontuario.trim() || valor.trim().length < 3) return;
+    setBuscandoNome(true);
+    try {
+      const resultados = await api.get<CandidatoNome[]>(
+        `/publico/unidades/${unidadeId}/pacientes/buscar?nome=${encodeURIComponent(valor.trim())}`,
+      );
+      setResultadosNome(resultados);
+    } catch {
+      /* falha de rede — segue com o formulário em branco */
+    } finally {
+      setBuscandoNome(false);
+    }
+  }
+
+  async function selecionarCandidatoNome(candidato: CandidatoNome) {
+    setResultadosNome([]);
+    definir("prontuario", candidato.numero_prontuario);
+    await buscarPorProntuario(candidato.numero_prontuario);
+  }
+
+  /** CRM primeiro: se já foi digitado antes nesta unidade, puxa o nome
+   * completo sozinho (2026-10-02, pedido do cliente) — só completa se o
+   * nome ainda estiver em branco. */
+  async function buscarMedicoPorCrm(crm: string) {
+    if (!crm.trim()) return;
+    setBuscandoMedico(true);
+    try {
+      const dados = await api.get<{ nome: string } | null>(
+        `/publico/unidades/${unidadeId}/medico-por-crm?crm=${encodeURIComponent(crm.trim())}`,
+      );
+      if (dados) setForm((f) => ({ ...f, medico_nome: f.medico_nome || dados.nome }));
+    } catch {
+      /* sem cadastro prévio pra esse CRM (ou falha de rede) — segue com o formulário em branco */
+    } finally {
+      setBuscandoMedico(false);
+    }
+  }
+
+  function alternarHemocomponente(tipo: TipoHemocomponente, selecionado: boolean) {
+    setForm((f) => ({ ...f, itens: { ...f.itens, [tipo]: { ...f.itens[tipo], selecionado, ...(selecionado ? {} : { quantidade: "", modificacoes: [] }) } } }));
+    setErros((e) => ({ ...e, itens: "", [`itens.${tipo}`]: "" }));
+  }
+
+  function definirItem(tipo: TipoHemocomponente, parcial: Partial<ItemHemocomponente>) {
+    setForm((f) => ({ ...f, itens: { ...f.itens, [tipo]: { ...f.itens[tipo], ...parcial } } }));
+    setErros((e) => ({ ...e, [`itens.${tipo}`]: "" }));
+  }
+
+  function alternarModificacao(tipo: TipoHemocomponente, m: Modificacao) {
+    const atuais = form.itens[tipo].modificacoes;
+    definirItem(tipo, { modificacoes: atuais.includes(m) ? atuais.filter((x) => x !== m) : [...atuais, m] });
   }
 
   function irParaPrimeiroErro() {
@@ -334,24 +597,43 @@ export function SolicitarTransfusaoPage() {
     setEnviando(true);
     try {
       const vazioParaNulo = (v: string) => (v.trim() ? v.trim() : null);
+      const itensPayload = (Object.keys(form.itens) as TipoHemocomponente[])
+        .filter((tipo) => form.itens[tipo].selecionado)
+        .map((tipo) => ({
+          tipo,
+          quantidade: Number(form.itens[tipo].quantidade),
+          unidade_medida: form.itens[tipo].unidade_medida,
+          modificacoes: form.itens[tipo].modificacoes,
+        }));
+
       const resposta = await api.post<{ protocolo: string; token_impressao: string }>(`/publico/unidades/${unidadeId}/formulario-solicitacao`, {
         website: form.website || null,
         convenio: vazioParaNulo(form.convenio),
         data_solicitacao: form.data_solicitacao,
         hora_solicitacao: form.hora_solicitacao,
         nome_paciente: form.nome_paciente,
-        prontuario: form.prontuario,
+        cpf: form.cpf,
+        cns: vazioParaNulo(form.cns),
+        nome_social: vazioParaNulo(form.nome_social),
+        prontuario: vazioParaNulo(form.prontuario),
         sexo: form.sexo,
         data_nascimento: form.data_nascimento,
         nome_mae: form.nome_mae,
-        raca_cor: form.raca_cor,
+        raca_cor: vazioParaNulo(form.raca_cor),
         setor_nome: form.setor_nome,
-        leito: form.leito,
-        peso_kg: Number(form.peso_kg),
+        leito: vazioParaNulo(form.leito),
+        peso_kg: form.peso_kg.trim() ? Number(form.peso_kg) : null,
+        cep: form.cep,
+        logradouro: form.logradouro,
+        numero: form.numero,
+        bairro: vazioParaNulo(form.bairro),
+        cidade: form.cidade,
+        uf: form.uf,
+        codigo_ibge: vazioParaNulo(form.codigo_ibge),
         diagnostico: form.diagnostico,
         hb: form.hb,
         ht: form.ht,
-        plaquetas: form.plaquetas,
+        plaquetas: vazioParaNulo(form.plaquetas),
         tp: vazioParaNulo(form.tp),
         ttpa: vazioParaNulo(form.ttpa),
         indicacao: form.indicacao,
@@ -359,20 +641,14 @@ export function SolicitarTransfusaoPage() {
         antecedentes_obstetricos: form.sexo === "F" ? form.antecedentes_obstetricos === "sim" : null,
         reacao_previa: form.reacao_previa === "sim",
         reacao_previa_descricao: form.reacao_previa === "sim" ? form.reacao_previa_descricao : null,
-        itens: form.itens.map((i) => ({
-          hemocomponente_id: i.hemocomponente_id,
-          quantidade: Number(i.quantidade),
-          unidade_medida: i.unidade_medida,
-          modificacoes: i.modificacoes,
-        })),
+        itens: itensPayload,
         modalidade: form.modalidade,
+        data_programada: form.modalidade === "PROGRAMADA" ? form.data_programada : null,
+        hora_programada: form.modalidade === "PROGRAMADA" ? form.hora_programada : null,
         observacoes: vazioParaNulo(form.observacoes),
-        termo_heterogrupo_medico: vazioParaNulo(form.termo_heterogrupo_medico),
-        termo_heterogrupo_crm: vazioParaNulo(form.termo_heterogrupo_crm),
-        termo_emergencia_medico: vazioParaNulo(form.termo_emergencia_medico),
-        termo_emergencia_crm: vazioParaNulo(form.termo_emergencia_crm),
         medico_nome: form.medico_nome,
         medico_crm: form.medico_crm,
+        cpf_e_da_mae: form.cpf_e_da_mae,
       });
       setGravado({ protocolo: resposta.protocolo, token: resposta.token_impressao });
       window.scrollTo({ top: 0 });
@@ -419,13 +695,27 @@ export function SolicitarTransfusaoPage() {
 
   return (
     <div className="min-h-screen bg-surface-bg pb-12">
-      <div className="bg-gradient-to-r from-hemo to-hemo-dark px-4 pb-16 pt-6 text-white">
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <img src="/brand/hemogest-simbolo.svg" alt="" className="h-12 w-12 shrink-0" />
-          <div>
-            <h1 className="text-xl font-semibold leading-tight sm:text-2xl">Solicitação de transfusão de hemocomponentes</h1>
-            <p className="text-sm text-white/85">{est.nome}</p>
+      <div className="bg-gradient-to-r from-formpub to-formpub-dark px-4 pb-16 pt-6 text-white">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-4 sm:flex-nowrap sm:justify-between">
+          <img
+            src="/brand/logo-hospital-joaquim-sampaio.png"
+            alt="Hospital Materno-Infantil Dr. Joaquim Sampaio"
+            className="h-10 w-auto shrink-0 rounded-md bg-white/95 px-2 py-1 sm:h-12"
+          />
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <img src="/brand/hemogest-simbolo.svg" alt="" className="hidden h-12 w-12 shrink-0 sm:block" />
+            <div>
+              <h1 className="text-xl font-semibold leading-tight sm:text-2xl">Solicitação de transfusão de hemocomponentes</h1>
+              <p className="text-sm text-white/85">
+                {est.nome} · STH Rev.5
+              </p>
+            </div>
           </div>
+          <img
+            src="/brand/logo-fesf-sus.png"
+            alt="FESF-SUS — Fundação Estatal Saúde da Família"
+            className="h-10 w-auto shrink-0 rounded-md bg-white/95 px-2 py-1 sm:h-12"
+          />
         </div>
       </div>
 
@@ -435,22 +725,36 @@ export function SolicitarTransfusaoPage() {
             <CheckCircle2 className="mx-auto mb-2 text-success" size={44} />
             <h2 className="text-xl font-semibold text-ink">Formulário gravado</h2>
             <p className="mt-1 text-sm text-ink-muted">Protocolo</p>
-            <p className="font-mono text-2xl font-bold text-hemo">{gravado.protocolo}</p>
-            <p className="mx-auto mt-3 max-w-md text-sm text-ink-muted">
-              Abra a visualização para imprimir.
-            </p>
+            <p className="font-mono text-2xl font-bold text-formpub">{gravado.protocolo}</p>
+            <p className="mx-auto mt-3 max-w-md text-sm text-ink-muted">Abra a visualização para baixar o PDF oficial (STH), pronto para imprimir e assinar.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
-              <Button onClick={() => navigate(`/formulario/${gravado.token}`, { state: { unidadeId } })} className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate(`/formulario/${gravado.token}`, { state: { unidadeId } })}
+                className="flex items-center gap-2 !bg-formpub hover:!bg-formpub-dark"
+              >
                 <Printer size={16} />
-                Abrir para imprimir
+                Abrir e baixar PDF
               </Button>
-              <Button variant="secondary" onClick={novoFormulario}>
+              <Button variant="secondary" onClick={novoFormulario} className="!border-formpub !text-formpub hover:!bg-formpub/5">
                 Preencher outro formulário
               </Button>
             </div>
           </div>
         ) : (
           <form onSubmit={enviar} noValidate className="space-y-6">
+            {/* Aviso HEMOBA (2026-10-01, pedido do cliente) — bem visível,
+             * antes de qualquer outra coisa no formulário. Fundo sólido (não
+             * translúcido): esse bloco fica na faixa de sobreposição com o
+             * cabeçalho escuro (-mt-10 do container pai) — com opacidade
+             * baixa o verde do cabeçalho vazava por trás e sujava o texto
+             * (2026-10-02, correção de bug real: "desalinhado e enorme"). */}
+            <div role="alert" className="rounded-card border-2 border-danger bg-white p-3 text-center shadow-sm">
+              <p className="text-sm font-bold text-danger">
+                * Os campos com * deverão ser obrigatoriamente preenchidos. O não preenchimento recorre na devolução da
+                solicitação e atraso no envio dos hemocomponentes.
+              </p>
+            </div>
+
             {(mensagens.length > 0 || errosServidor.length > 0) && (
               <div role="alert" className="rounded-card border border-danger bg-surface-card p-4 text-sm shadow-sm">
                 {mensagens.length > 0 && (
@@ -479,7 +783,7 @@ export function SolicitarTransfusaoPage() {
               </label>
             </div>
 
-            <Secao titulo="Estabelecimento solicitante">
+            <Secao titulo="Dados do estabelecimento solicitante">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
                 <Campo rotulo="Hospital / unidade de saúde" className="sm:col-span-3">
                   <input readOnly value={est.nome} className={clsx(campoBase, "border-neutral-200 bg-neutral-100 font-medium dark:bg-neutral-700")} />
@@ -487,8 +791,8 @@ export function SolicitarTransfusaoPage() {
                 <Campo rotulo="CNES" className="sm:col-span-1">
                   <input readOnly value={est.cnes ?? "—"} className={clsx(campoBase, "border-neutral-200 bg-neutral-100 font-medium dark:bg-neutral-700")} />
                 </Campo>
-                <Campo id="convenio" rotulo="Convênio" className="sm:col-span-2">
-                  <input id="convenio" maxLength={60} value={form.convenio} onChange={(e) => definir("convenio", e.target.value)} className={classe("convenio")} />
+                <Campo rotulo="Convênio" className="sm:col-span-2">
+                  <input readOnly value={form.convenio} className={clsx(campoBase, "border-neutral-200 bg-neutral-100 font-medium dark:bg-neutral-700")} />
                 </Campo>
                 {enderecoCompleto && (
                   <Campo rotulo="Endereço" className="sm:col-span-6">
@@ -498,32 +802,173 @@ export function SolicitarTransfusaoPage() {
               </div>
             </Secao>
 
-            <Secao titulo="Identificação do paciente">
+            <Secao titulo="1 · Identificação do paciente">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-                <Campo id="nome_paciente" rotulo="Nome completo do paciente *" erro={erro("nome_paciente")} dica="Sem abreviações." className="sm:col-span-6">
-                  <input id="nome_paciente" maxLength={200} autoComplete="off" value={form.nome_paciente} onChange={(e) => definir("nome_paciente", e.target.value)} className={classe("nome_paciente")} />
+                <Campo
+                  id="prontuario"
+                  rotulo="Nº prontuário *"
+                  erro={erro("prontuario")}
+                  dica={buscandoProntuario ? "Buscando cadastro..." : prontuarioEncontrado ? "Dados do paciente preenchidos automaticamente." : undefined}
+                  className="sm:col-span-3"
+                >
+                  <input
+                    id="prontuario"
+                    inputMode="numeric"
+                    maxLength={30}
+                    autoComplete="off"
+                    value={form.prontuario}
+                    onChange={(e) => definir("prontuario", somenteDigitos(e.target.value))}
+                    onBlur={(e) => buscarPorProntuario(e.target.value)}
+                    className={classe("prontuario")}
+                  />
                 </Campo>
-                <Campo id="prontuario" rotulo="Nº prontuário *" erro={erro("prontuario")} className="sm:col-span-2">
-                  <input id="prontuario" maxLength={30} autoComplete="off" value={form.prontuario} onChange={(e) => definir("prontuario", e.target.value)} className={classe("prontuario")} />
+                <Campo
+                  id="nome_paciente"
+                  rotulo="Nome completo do paciente *"
+                  erro={erro("nome_paciente")}
+                  dica={
+                    buscandoNome
+                      ? "Buscando cadastro..."
+                      : form.prontuario.trim()
+                        ? "Sem abreviações."
+                        : "Sem abreviações. Sem o prontuário, procura pelo nome ao sair do campo."
+                  }
+                  className="sm:col-span-6"
+                >
+                  <input
+                    id="nome_paciente"
+                    maxLength={200}
+                    autoComplete="off"
+                    value={form.nome_paciente}
+                    onChange={(e) => definir("nome_paciente", maiusculo(e.target.value))}
+                    onBlur={(e) => buscarPorNome(e.target.value)}
+                    className={classe("nome_paciente")}
+                  />
+                  {resultadosNome.length > 0 && (
+                    <div className="mt-1.5 overflow-hidden rounded-lg border border-formpub/30 bg-white shadow-sm">
+                      <p className="border-b border-formpub/20 bg-formpub/5 px-3 py-1.5 text-xs font-medium text-formpub">
+                        Encontrei {resultadosNome.length === 1 ? "este cadastro" : "estes cadastros"} — confirme quem é:
+                      </p>
+                      <ul>
+                        {resultadosNome.map((c) => (
+                          <li key={c.numero_prontuario}>
+                            <button
+                              type="button"
+                              onClick={() => selecionarCandidatoNome(c)}
+                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-formpub/5"
+                            >
+                              <span className="font-medium text-ink">{c.nome_paciente}</span>
+                              <span className="shrink-0 text-xs text-ink-muted">
+                                {c.data_nascimento ? new Date(`${c.data_nascimento}T12:00:00`).toLocaleDateString("pt-BR") : "—"}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => setResultadosNome([])}
+                        className="w-full border-t border-formpub/20 px-3 py-1.5 text-center text-xs text-ink-muted hover:bg-neutral-50"
+                      >
+                        Nenhum destes / continuar digitando
+                      </button>
+                    </div>
+                  )}
                 </Campo>
-                <Campo id="sexo" rotulo="Sexo *" erro={erro("sexo")} className="sm:col-span-1">
+                <Campo id="cpf" rotulo="CPF *" erro={erro("cpf")} className="sm:col-span-3">
+                  <input id="cpf" inputMode="numeric" placeholder="000.000.000-00" value={form.cpf} onChange={(e) => definir("cpf", mascararCpf(e.target.value))} className={classe("cpf")} />
+                  <label className="mt-1.5 flex items-center gap-1.5 text-xs text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={form.cpf_e_da_mae}
+                      onChange={(e) => definir("cpf_e_da_mae", e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-neutral-300"
+                    />
+                    CPF é da mãe (recém-nascido sem CPF próprio)
+                  </label>
+                </Campo>
+                <Campo id="cns" rotulo="Cartão SUS (CNS) *" erro={erro("cns")} className="sm:col-span-3">
+                  <input id="cns" inputMode="numeric" placeholder="000 0000 0000 0000" value={form.cns} onChange={(e) => definir("cns", mascararCns(e.target.value))} className={classe("cns")} />
+                </Campo>
+
+                <Campo id="nome_social" rotulo="Nome social" dica="Se houver." className="sm:col-span-6">
+                  <input id="nome_social" maxLength={200} autoComplete="off" value={form.nome_social} onChange={(e) => definir("nome_social", maiusculo(e.target.value))} className={classe("nome_social")} />
+                </Campo>
+                <Campo id="nome_mae" rotulo="Nome da genitora *" erro={erro("nome_mae")} className="sm:col-span-6">
+                  <input id="nome_mae" maxLength={200} autoComplete="off" value={form.nome_mae} onChange={(e) => definir("nome_mae", maiusculo(e.target.value))} className={classe("nome_mae")} />
+                </Campo>
+
+                <Campo id="setor_nome" rotulo="Unidade / enfermaria *" erro={erro("setor_nome")} className="sm:col-span-6">
+                  <select id="setor_nome" value={form.setor_nome} onChange={(e) => definir("setor_nome", e.target.value)} className={classe("setor_nome")}>
+                    <option value="">Selecione</option>
+                    {SETORES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="leito" rotulo="Leito" className="sm:col-span-3">
+                  <input id="leito" maxLength={20} autoComplete="off" value={form.leito} onChange={(e) => definir("leito", maiusculo(e.target.value))} className={classe("leito")} />
+                </Campo>
+                <Campo id="idade" rotulo="Idade" className="sm:col-span-3">
+                  <input id="idade" readOnly value={idade || "Automática"} className={clsx(campoBase, "border-neutral-200 bg-neutral-100 dark:bg-neutral-700", !idade && "text-ink-muted")} />
+                </Campo>
+
+                <Campo id="cep" rotulo="CEP *" erro={erro("cep")} dica={buscandoCep ? "Buscando endereço..." : "Preenche o resto do endereço automaticamente."} className="sm:col-span-3">
+                  <input
+                    id="cep"
+                    inputMode="numeric"
+                    placeholder="00000-000"
+                    value={form.cep}
+                    onChange={(e) => definir("cep", mascararCep(e.target.value))}
+                    onBlur={(e) => buscarCep(e.target.value)}
+                    className={classe("cep")}
+                  />
+                </Campo>
+                <Campo id="logradouro" rotulo="Logradouro *" erro={erro("logradouro")} className="sm:col-span-6">
+                  <input id="logradouro" maxLength={255} autoComplete="off" value={form.logradouro} onChange={(e) => definir("logradouro", maiusculo(e.target.value))} className={classe("logradouro")} />
+                </Campo>
+                <Campo id="numero" rotulo="Número *" erro={erro("numero")} className="sm:col-span-3">
+                  <input id="numero" maxLength={20} autoComplete="off" value={form.numero} onChange={(e) => definir("numero", maiusculo(e.target.value))} className={classe("numero")} />
+                </Campo>
+
+                <Campo id="bairro" rotulo="Bairro" className="sm:col-span-4">
+                  <input id="bairro" maxLength={255} autoComplete="off" value={form.bairro} onChange={(e) => definir("bairro", maiusculo(e.target.value))} className={classe("bairro")} />
+                </Campo>
+                <Campo id="cidade" rotulo="Cidade *" erro={erro("cidade")} className="sm:col-span-5">
+                  <input id="cidade" maxLength={120} autoComplete="off" value={form.cidade} onChange={(e) => definir("cidade", maiusculo(e.target.value))} className={classe("cidade")} />
+                </Campo>
+                <Campo id="uf" rotulo="Estado *" erro={erro("uf")} className="sm:col-span-3">
+                  <select id="uf" value={form.uf} onChange={(e) => definir("uf", e.target.value)} className={classe("uf")}>
+                    <option value="">—</option>
+                    {UFS.map((u) => (
+                      <option key={u}>{u}</option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="codigo_ibge" rotulo="Código IBGE" dica="Preenchido junto com o CEP." className="sm:col-span-3">
+                  <input id="codigo_ibge" readOnly value={form.codigo_ibge} className={clsx(campoBase, "border-neutral-200 bg-neutral-100 dark:bg-neutral-700")} />
+                </Campo>
+              </div>
+            </Secao>
+
+            <Secao titulo="3 · Clínica">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+                <Campo id="data_nascimento" rotulo="Nascimento *" erro={erro("data_nascimento")} className="sm:col-span-3">
+                  <input id="data_nascimento" type="date" min="1900-01-01" max={agora().data} value={form.data_nascimento} onChange={(e) => definir("data_nascimento", e.target.value)} className={classe("data_nascimento")} />
+                </Campo>
+                <Campo id="sexo" rotulo="Sexo *" erro={erro("sexo")} className="sm:col-span-2">
                   <select id="sexo" value={form.sexo} onChange={(e) => definir("sexo", e.target.value as FormState["sexo"])} className={classe("sexo")}>
                     <option value="">—</option>
                     <option value="M">M</option>
                     <option value="F">F</option>
                   </select>
                 </Campo>
-                <Campo id="data_nascimento" rotulo="Nascimento *" erro={erro("data_nascimento")} className="sm:col-span-3">
-                  <input id="data_nascimento" type="date" min="1900-01-01" max={agora().data} value={form.data_nascimento} onChange={(e) => definir("data_nascimento", e.target.value)} className={classe("data_nascimento")} />
+                <Campo id="peso_kg" rotulo="Peso (kg)" dica="Ex.: 2,85" className="sm:col-span-2">
+                  <input id="peso_kg" type="number" inputMode="decimal" step="0.001" min="0" value={form.peso_kg} onChange={(e) => definir("peso_kg", e.target.value)} className={classe("peso_kg")} />
                 </Campo>
-
-                <Campo id="nome_mae" rotulo="Nome da mãe (genitora) *" erro={erro("nome_mae")} className="sm:col-span-6">
-                  <input id="nome_mae" maxLength={200} autoComplete="off" value={form.nome_mae} onChange={(e) => definir("nome_mae", e.target.value)} className={classe("nome_mae")} />
-                </Campo>
-                <Campo id="idade" rotulo="Idade" className="sm:col-span-3">
-                  <input id="idade" readOnly value={idade || "Automática"} className={clsx(campoBase, "border-neutral-200 bg-neutral-100 dark:bg-neutral-700", !idade && "text-ink-muted")} />
-                </Campo>
-                <Campo id="raca_cor" rotulo="Raça / cor *" erro={erro("raca_cor")} className="sm:col-span-3">
+                <Campo id="raca_cor" rotulo="Raça / cor" className="sm:col-span-5">
                   <select id="raca_cor" value={form.raca_cor} onChange={(e) => definir("raca_cor", e.target.value)} className={classe("raca_cor")}>
                     <option value="">Selecione</option>
                     {RACAS.map((r) => (
@@ -532,186 +977,210 @@ export function SolicitarTransfusaoPage() {
                   </select>
                 </Campo>
 
-                <Campo id="setor_nome" rotulo="Unidade / enfermaria *" erro={erro("setor_nome")} className="sm:col-span-3">
-                  <input id="setor_nome" list="lista-setores" maxLength={120} autoComplete="off" placeholder="Ex.: UTI Neonatal, Pediatria" value={form.setor_nome} onChange={(e) => definir("setor_nome", e.target.value)} className={classe("setor_nome")} />
-                  <datalist id="lista-setores">
-                    {config.setores.map((s) => (
-                      <option key={s} value={s} />
-                    ))}
-                  </datalist>
+                <Campo id="hb" rotulo="Hb (g/dL) *" erro={erro("hb")} className="sm:col-span-3">
+                  <input
+                    id="hb"
+                    maxLength={20}
+                    inputMode="decimal"
+                    value={form.hb}
+                    onChange={(e) => definir("hb", e.target.value)}
+                    onBlur={(e) => definir("hb", formatarUmaCasaDecimal(e.target.value))}
+                    className={classe("hb")}
+                  />
                 </Campo>
-                <Campo id="leito" rotulo="Leito *" erro={erro("leito")} className="sm:col-span-2">
-                  <input id="leito" maxLength={20} autoComplete="off" value={form.leito} onChange={(e) => definir("leito", e.target.value)} className={classe("leito")} />
+                <Campo id="ht" rotulo="Ht (%) *" erro={erro("ht")} className="sm:col-span-3">
+                  <input
+                    id="ht"
+                    maxLength={20}
+                    inputMode="decimal"
+                    value={form.ht}
+                    onChange={(e) => definir("ht", e.target.value)}
+                    onBlur={(e) => definir("ht", formatarUmaCasaDecimal(e.target.value))}
+                    className={classe("ht")}
+                  />
                 </Campo>
-                <Campo id="peso_kg" rotulo="Peso (kg) *" erro={erro("peso_kg")} dica="Ex.: 2,85" className="sm:col-span-2">
-                  <input id="peso_kg" type="number" inputMode="decimal" step="0.001" min="0" value={form.peso_kg} onChange={(e) => definir("peso_kg", e.target.value)} className={classe("peso_kg")} />
+                <Campo id="plaquetas" rotulo="Plaquetas (/mm³)" className="sm:col-span-3">
+                  <input
+                    id="plaquetas"
+                    maxLength={20}
+                    inputMode="numeric"
+                    value={form.plaquetas}
+                    onChange={(e) => definir("plaquetas", e.target.value)}
+                    onBlur={(e) => definir("plaquetas", formatarMilhar(e.target.value))}
+                    className={classe("plaquetas")}
+                  />
                 </Campo>
-                <Campo id="data_solicitacao" rotulo="Data solicit. *" erro={erro("data_solicitacao")} className="sm:col-span-3">
-                  <input id="data_solicitacao" type="date" value={form.data_solicitacao} onChange={(e) => definir("data_solicitacao", e.target.value)} className={classe("data_solicitacao")} />
+                <Campo id="tp" rotulo="TP / TTPA" dica="Ex.: 1,1 / 32" className="sm:col-span-3">
+                  <div className="flex gap-2">
+                    <input id="tp" maxLength={20} inputMode="decimal" placeholder="TP" value={form.tp} onChange={(e) => definir("tp", e.target.value)} className={classe("tp")} />
+                    <input id="ttpa" maxLength={20} inputMode="decimal" placeholder="TTPA" value={form.ttpa} onChange={(e) => definir("ttpa", e.target.value)} className={classe("ttpa")} />
+                  </div>
                 </Campo>
-                <Campo id="hora_solicitacao" rotulo="Horário *" erro={erro("hora_solicitacao")} className="sm:col-span-2">
-                  <input id="hora_solicitacao" type="time" value={form.hora_solicitacao} onChange={(e) => definir("hora_solicitacao", e.target.value)} className={classe("hora_solicitacao")} />
-                </Campo>
-              </div>
-            </Secao>
 
-            <Secao titulo="Dados clínicos e laboratoriais">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-10">
-                <Campo id="diagnostico" rotulo="Diagnóstico *" erro={erro("diagnostico")} className="col-span-2 sm:col-span-10">
-                  <input id="diagnostico" maxLength={500} value={form.diagnostico} onChange={(e) => definir("diagnostico", e.target.value)} placeholder="Diagnóstico principal" className={classe("diagnostico")} />
+                <Campo id="diagnostico" rotulo="Diagnóstico *" erro={erro("diagnostico")} className="col-span-2 sm:col-span-12">
+                  <input id="diagnostico" maxLength={500} value={form.diagnostico} onChange={(e) => definir("diagnostico", maiusculo(e.target.value))} placeholder="Diagnóstico principal" className={classe("diagnostico")} />
                 </Campo>
-                <Campo id="hb" rotulo="Hb (g/dL) *" erro={erro("hb")} className="sm:col-span-2">
-                  <input id="hb" maxLength={20} inputMode="decimal" value={form.hb} onChange={(e) => definir("hb", e.target.value)} className={classe("hb")} />
-                </Campo>
-                <Campo id="ht" rotulo="Ht (%) *" erro={erro("ht")} className="sm:col-span-2">
-                  <input id="ht" maxLength={20} inputMode="decimal" value={form.ht} onChange={(e) => definir("ht", e.target.value)} className={classe("ht")} />
-                </Campo>
-                <Campo id="plaquetas" rotulo="Plaquetas (/mm³) *" erro={erro("plaquetas")} className="sm:col-span-2">
-                  <input id="plaquetas" maxLength={20} inputMode="numeric" value={form.plaquetas} onChange={(e) => definir("plaquetas", e.target.value)} className={classe("plaquetas")} />
-                </Campo>
-                <Campo id="tp" rotulo="TP (s)" className="sm:col-span-2">
-                  <input id="tp" maxLength={20} inputMode="decimal" placeholder="Opcional" value={form.tp} onChange={(e) => definir("tp", e.target.value)} className={classe("tp")} />
-                </Campo>
-                <Campo id="ttpa" rotulo="TTPA (s)" className="sm:col-span-2">
-                  <input id="ttpa" maxLength={20} inputMode="decimal" placeholder="Opcional" value={form.ttpa} onChange={(e) => definir("ttpa", e.target.value)} className={classe("ttpa")} />
-                </Campo>
-              </div>
-            </Secao>
 
-            <Secao titulo="Histórico transfusional e indicação">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-                <Escolha rotulo="Indicação *" nome="indicacao" valor={form.indicacao} erro={erro("indicacao")} onChange={(v) => definir("indicacao", v as FormState["indicacao"])} opcoes={[{ valor: "USO", rotulo: "Uso" }, { valor: "RESERVA", rotulo: "Reserva" }]} />
-                <Escolha rotulo="Antecedentes transfusionais *" nome="ant_transf" valor={form.antecedentes_transfusionais} erro={erro("antecedentes_transfusionais")} onChange={(v) => definir("antecedentes_transfusionais", v as Sn)} opcoes={[{ valor: "sim", rotulo: "Sim" }, { valor: "nao", rotulo: "Não" }]} />
+                <Escolha rotulo="Antecedente transfusional? *" nome="ant_transf" valor={form.antecedentes_transfusionais} erro={erro("antecedentes_transfusionais")} onChange={(v) => definir("antecedentes_transfusionais", v as Sn)} opcoes={[{ valor: "nao", rotulo: "Não" }, { valor: "sim", rotulo: "Sim" }]} className="sm:col-span-4" />
                 {form.sexo === "F" && (
-                  <Escolha rotulo="Antecedentes obstétricos *" nome="ant_obst" valor={form.antecedentes_obstetricos} erro={erro("antecedentes_obstetricos")} onChange={(v) => definir("antecedentes_obstetricos", v as Sn)} opcoes={[{ valor: "sim", rotulo: "Sim" }, { valor: "nao", rotulo: "Não" }]} />
+                  <Escolha rotulo="Antecedentes obstétricos? *" nome="ant_obst" valor={form.antecedentes_obstetricos} erro={erro("antecedentes_obstetricos")} onChange={(v) => definir("antecedentes_obstetricos", v as Sn)} opcoes={[{ valor: "nao", rotulo: "Não" }, { valor: "sim", rotulo: "Sim" }]} className="sm:col-span-4" />
                 )}
-                <Escolha rotulo="Reação transfusional prévia *" nome="reacao_previa" valor={form.reacao_previa} erro={erro("reacao_previa")} onChange={(v) => definir("reacao_previa", v as Sn)} opcoes={[{ valor: "sim", rotulo: "Sim" }, { valor: "nao", rotulo: "Não" }]} />
+                <Escolha rotulo="Reação transfusional prévia? *" nome="reacao_previa" valor={form.reacao_previa} erro={erro("reacao_previa")} onChange={(v) => definir("reacao_previa", v as Sn)} opcoes={[{ valor: "nao", rotulo: "Não" }, { valor: "sim", rotulo: "Sim" }]} className="sm:col-span-4" />
                 {form.reacao_previa === "sim" && (
-                  <Campo id="reacao_previa_descricao" rotulo="Especificar reação transfusional *" erro={erro("reacao_previa_descricao")} className="sm:col-span-4">
-                    <input id="reacao_previa_descricao" maxLength={500} value={form.reacao_previa_descricao} onChange={(e) => definir("reacao_previa_descricao", e.target.value)} placeholder="Sintomas e tipo de reação anterior" className={classe("reacao_previa_descricao")} />
+                  <Campo id="reacao_previa_descricao" rotulo="Especificar reação transfusional *" erro={erro("reacao_previa_descricao")} className="sm:col-span-12">
+                    <input id="reacao_previa_descricao" maxLength={500} value={form.reacao_previa_descricao} onChange={(e) => definir("reacao_previa_descricao", maiusculo(e.target.value))} placeholder="Tipo de reação anterior" className={classe("reacao_previa_descricao")} />
                   </Campo>
                 )}
+                <Escolha
+                  rotulo="Indicação transfusional *"
+                  nome="indicacao"
+                  valor={form.indicacao}
+                  erro={erro("indicacao")}
+                  onChange={(v) => definir("indicacao", v as FormState["indicacao"])}
+                  opcoes={[...OPCOES_INDICACAO]}
+                  className="sm:col-span-4"
+                />
               </div>
             </Secao>
 
-            <Secao titulo="Hemocomponente(s) e modificação">
-              {config.hemocomponentes.length === 0 && (
-                <p className="mb-3 rounded-lg bg-warning/10 p-3 text-sm text-ink">Esta unidade ainda não cadastrou hemocomponentes. Fale com a agência transfusional.</p>
+            <Secao titulo="4 · Hemoterapia">
+              {erro("itens") && (
+                <p className="mb-2 text-xs text-danger" role="alert">
+                  {erro("itens")}
+                </p>
               )}
-              <div className="space-y-3">
-                {form.itens.map((item, i) => (
-                  <div key={i} className="rounded-lg border border-neutral-200 p-3">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
-                      <Campo id={`hemo-${i}`} rotulo={`Hemocomponente ${form.itens.length > 1 ? i + 1 : ""} *`} erro={erro(`itens.${i}.hemocomponente_id`)} className="sm:col-span-5">
-                        <select id={`hemo-${i}`} value={item.hemocomponente_id} onChange={(e) => definirItem(i, { hemocomponente_id: e.target.value })} className={classe(`itens.${i}.hemocomponente_id`)}>
-                          <option value="">Selecione...</option>
-                          {config.hemocomponentes.map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {h.sigla ? `${h.sigla} · ${h.nome}` : h.nome}
-                            </option>
-                          ))}
-                        </select>
-                      </Campo>
-                      <Campo id={`qtd-${i}`} rotulo="Quantidade *" erro={erro(`itens.${i}.quantidade`)} className="sm:col-span-4">
-                        <div className="flex items-center gap-3">
-                          <input id={`qtd-${i}`} type="number" min={1} inputMode="numeric" value={item.quantidade} onChange={(e) => definirItem(i, { quantidade: e.target.value })} className={clsx(classe(`itens.${i}.quantidade`), "w-24")} />
-                          {(["UNIDADE", "ML"] as const).map((u) => (
-                            <label key={u} className="flex cursor-pointer items-center gap-1 text-sm text-ink">
-                              <input type="radio" name={`medida-${i}`} checked={item.unidade_medida === u} onChange={() => definirItem(i, { unidade_medida: u })} className="h-4 w-4 accent-hemo" />
-                              {u === "UNIDADE" ? "Unid." : "mL"}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-neutral-300 text-left text-xs uppercase tracking-wide text-formpub">
+                      <th className="py-1.5 pr-2">Hemocomponente</th>
+                      <th className="py-1.5 pr-2">Nº unidades / volume</th>
+                      <th className="py-1.5">Processo de modificação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {HEMOCOMPONENTES.map((h) => {
+                      const item = form.itens[h.tipo];
+                      const erroItem = erro(`itens.${h.tipo}`);
+                      return (
+                        <tr key={h.tipo} className="border-b border-neutral-100 align-top" data-erro={erroItem ? "true" : undefined}>
+                          <td className="py-2 pr-2">
+                            <label className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink">
+                              <input type="checkbox" checked={item.selecionado} onChange={(e) => alternarHemocomponente(h.tipo, e.target.checked)} className="h-4 w-4 accent-formpub" />
+                              {h.nome}
                             </label>
-                          ))}
-                        </div>
-                      </Campo>
-                      <div className="flex items-end justify-end sm:col-span-3">
-                        {i > 0 && (
-                          <button type="button" onClick={() => setForm((f) => ({ ...f, itens: f.itens.filter((_, k) => k !== i) }))} className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-danger hover:bg-danger/10">
-                            <Trash2 size={15} /> Remover
-                          </button>
-                        )}
-                      </div>
-                      <div className="sm:col-span-12">
-                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-hemo">Processo de modificação</span>
-                        <div className="flex flex-wrap gap-2">
-                          {MODIFICACOES.map((m) => (
-                            <label key={m} className={clsx("flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm text-ink", item.modificacoes.includes(m) ? "border-hemo bg-hemo/10 text-hemo" : "border-neutral-300")}>
-                              <input type="checkbox" checked={item.modificacoes.includes(m)} onChange={() => alternarModificacao(i, m)} className="accent-hemo" />
-                              {m}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                          </td>
+                          <td className="py-2 pr-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min={1}
+                                inputMode="numeric"
+                                disabled={!item.selecionado}
+                                value={item.quantidade}
+                                onChange={(e) => definirItem(h.tipo, { quantidade: e.target.value })}
+                                className={clsx(campoBase, "w-20", erroItem ? "border-danger bg-danger/5" : "border-neutral-300")}
+                              />
+                              {(["UNIDADE", "ML"] as const).map((u) => (
+                                <label key={u} className="flex items-center gap-1 text-xs text-ink">
+                                  <input
+                                    type="radio"
+                                    name={`medida-${h.tipo}`}
+                                    disabled={!item.selecionado}
+                                    checked={item.unidade_medida === u}
+                                    onChange={() => definirItem(h.tipo, { unidade_medida: u })}
+                                    className="h-3.5 w-3.5 accent-formpub"
+                                  />
+                                  {u === "UNIDADE" ? "Unid." : "mL"}
+                                </label>
+                              ))}
+                            </div>
+                            {erroItem && (
+                              <p className="mt-1 text-xs text-danger" role="alert">
+                                {erroItem}
+                              </p>
+                            )}
+                          </td>
+                          <td className="py-2">
+                            {h.modificacoes.length === 0 ? (
+                              <span className="text-xs text-ink-muted">—</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {h.modificacoes.map((m) => (
+                                  <label key={m} className={clsx("flex cursor-pointer items-center gap-1 text-xs text-ink", !item.selecionado && "opacity-50")}>
+                                    <input
+                                      type="checkbox"
+                                      disabled={!item.selecionado}
+                                      checked={item.modificacoes.includes(m)}
+                                      onChange={() => alternarModificacao(h.tipo, m)}
+                                      className="h-3.5 w-3.5 accent-formpub"
+                                    />
+                                    {NOME_MODIFICACAO[m]}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                {form.itens.length < MAX_ITENS ? (
-                  <Button type="button" variant="secondary" onClick={() => setForm((f) => ({ ...f, itens: [...f.itens, { ...ITEM_VAZIO }] }))} className="flex items-center gap-1.5">
-                    <Plus size={15} /> Adicionar outro hemocomponente
-                  </Button>
-                ) : (
-                  <span />
-                )}
-                <span className="text-xs text-ink-muted">Máximo de {MAX_ITENS} itens.</span>
-              </div>
-              <div className="mt-4 border-t border-neutral-200 pt-3">
-                <Escolha rotulo="Modalidade da transfusão *" nome="modalidade" valor={form.modalidade} erro={erro("modalidade")} onChange={(v) => definir("modalidade", v)} opcoes={MODALIDADES} />
-              </div>
+              <p className="mt-2 text-xs text-ink-muted">Marque um ou mais hemocomponentes; a quantidade e as modificações de cada um só ficam habilitadas depois de marcá-lo.</p>
+            </Secao>
+
+            <Secao titulo="5 · Programação">
+              <Escolha rotulo="Modalidade da transfusão *" nome="modalidade" valor={form.modalidade} erro={erro("modalidade")} onChange={(v) => definir("modalidade", v)} opcoes={MODALIDADES} />
+              {form.modalidade === "PROGRAMADA" && (
+                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-4">
+                  <Campo id="data_programada" rotulo="Data prevista *" erro={erro("data_programada")} className="sm:col-span-2">
+                    <input id="data_programada" type="date" value={form.data_programada} onChange={(e) => definir("data_programada", e.target.value)} className={classe("data_programada")} />
+                  </Campo>
+                  <Campo id="hora_programada" rotulo="Hora prevista *" erro={erro("hora_programada")} className="sm:col-span-2">
+                    <input id="hora_programada" type="time" value={form.hora_programada} onChange={(e) => definir("hora_programada", e.target.value)} className={classe("hora_programada")} />
+                  </Campo>
+                </div>
+              )}
             </Secao>
 
             <Secao titulo="Observações complementares">
               <Campo id="observacoes" rotulo="Informações clínicas complementares">
-                <textarea id="observacoes" rows={3} maxLength={2000} value={form.observacoes} onChange={(e) => definir("observacoes", e.target.value)} placeholder="Ex.: histórico de sensibilização, urgência justificada, fenotipagem específica" className={classe("observacoes")} />
+                <textarea id="observacoes" rows={3} maxLength={2000} value={form.observacoes} onChange={(e) => definir("observacoes", maiusculo(e.target.value))} placeholder="Ex.: histórico de sensibilização, urgência justificada, fenotipagem específica" className={classe("observacoes")} />
               </Campo>
             </Secao>
 
-            <Secao titulo="Termos de responsabilidade e consentimento">
-              <p className="mb-3 text-sm text-ink-muted">Preencha só se o termo se aplicar.</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg border border-dashed border-hemo/50 p-3">
-                  <h3 className="border-l-4 border-hemo pl-2 text-xs font-bold uppercase text-hemo">Termo: transfusão heterogrupo</h3>
-                  <p className="mb-2 mt-1.5 text-xs leading-relaxed text-ink-muted">Autorizo a transfusão de hemocomponentes heterogrupo compatível para o(a) paciente identificado acima, seguindo as diretrizes de segurança imuno-hematológica vigentes.</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Campo id="termo_hetero_medico" rotulo="Médico" className="col-span-2">
-                      <input id="termo_hetero_medico" maxLength={120} value={form.termo_heterogrupo_medico} onChange={(e) => definir("termo_heterogrupo_medico", e.target.value)} className={classe("termo_heterogrupo_medico")} />
-                    </Campo>
-                    <Campo id="termo_hetero_crm" rotulo="CRM">
-                      <input id="termo_hetero_crm" maxLength={30} value={form.termo_heterogrupo_crm} onChange={(e) => definir("termo_heterogrupo_crm", e.target.value)} className={classe("termo_heterogrupo_crm")} />
-                    </Campo>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-dashed border-hemo/50 p-3">
-                  <h3 className="border-l-4 border-hemo pl-2 text-xs font-bold uppercase text-hemo">Termo: emergência</h3>
-                  <p className="mb-2 mt-1.5 text-xs leading-relaxed text-ink-muted">Autorizo ao serviço de hemoterapia o fornecimento de concentrado de hemácias (CH) em caráter de emergência para o(a) paciente identificado acima antes da conclusão dos testes pré-transfusionais, ciente de que o retardo acarreta risco à vida do(a) mesmo(a). Conforme legislação vigente, afirmo conhecer o risco de tal procedimento e concordo com a autorização do mesmo.</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Campo id="termo_emerg_medico" rotulo="Médico" className="col-span-2">
-                      <input id="termo_emerg_medico" maxLength={120} value={form.termo_emergencia_medico} onChange={(e) => definir("termo_emergencia_medico", e.target.value)} className={classe("termo_emergencia_medico")} />
-                    </Campo>
-                    <Campo id="termo_emerg_crm" rotulo="CRM">
-                      <input id="termo_emerg_crm" maxLength={30} value={form.termo_emergencia_crm} onChange={(e) => definir("termo_emergencia_crm", e.target.value)} className={classe("termo_emergencia_crm")} />
-                    </Campo>
-                  </div>
-                </div>
-              </div>
-            </Secao>
-
-            <Secao titulo="Médico requisitante">
+            <Secao titulo="6 · Médico solicitante">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Campo id="medico_nome" rotulo="Nome completo do médico solicitante *" erro={erro("medico_nome")} className="sm:col-span-2">
-                  <input id="medico_nome" maxLength={120} autoComplete="off" value={form.medico_nome} onChange={(e) => definir("medico_nome", e.target.value)} placeholder="Nome por extenso" className={classe("medico_nome")} />
-                </Campo>
                 <Campo id="medico_crm" rotulo="CRM *" erro={erro("medico_crm")}>
-                  <input id="medico_crm" maxLength={30} autoComplete="off" value={form.medico_crm} onChange={(e) => definir("medico_crm", e.target.value)} className={classe("medico_crm")} />
+                  <input
+                    id="medico_crm"
+                    maxLength={30}
+                    autoComplete="off"
+                    value={form.medico_crm}
+                    onChange={(e) => definir("medico_crm", maiusculo(e.target.value))}
+                    onBlur={(e) => buscarMedicoPorCrm(e.target.value)}
+                    className={classe("medico_crm")}
+                  />
+                </Campo>
+                <Campo
+                  id="medico_nome"
+                  rotulo="Nome completo do médico solicitante *"
+                  erro={erro("medico_nome")}
+                  dica={buscandoMedico ? "Buscando médico..." : undefined}
+                  className="sm:col-span-2"
+                >
+                  <input id="medico_nome" maxLength={120} autoComplete="off" value={form.medico_nome} onChange={(e) => definir("medico_nome", maiusculo(e.target.value))} placeholder="Digite o CRM primeiro" className={classe("medico_nome")} />
                 </Campo>
               </div>
+              <p className="mt-2 text-xs text-ink-muted">Assinatura e telefone não são preenchidos digitalmente.</p>
             </Secao>
 
             <div className="flex flex-col items-center gap-2 pt-2">
-              <Button type="submit" disabled={enviando || config.hemocomponentes.length === 0} className="min-w-56 px-8 py-3 text-base">
+              <Button type="submit" disabled={enviando} className="min-w-56 px-8 py-3 text-base !bg-formpub hover:!bg-formpub-dark">
                 {enviando ? "Gravando..." : "Gravar solicitação"}
               </Button>
-              <p className="text-xs text-ink-muted">Depois de gravar, você abre a visualização para imprimir.</p>
+              <p className="text-xs text-ink-muted">Depois de gravar, você abre a visualização para baixar o PDF oficial.</p>
             </div>
           </form>
         )}

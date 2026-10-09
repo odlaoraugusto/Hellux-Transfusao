@@ -1,7 +1,7 @@
 """
 HemoGest — Service de Role.
-Regra de negócio: os 4 perfis fixos da V1 (RoleCodigo) não podem ser
-excluídos nem ter o código alterado — apenas nome/descrição/permissões.
+Regra de negócio: os 5 perfis fixos (RoleCodigo) não podem ser excluídos
+nem ter o código alterado — apenas nome/descrição/permissões.
 """
 import uuid
 
@@ -10,17 +10,25 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import registrar_auditoria
+from app.core.permissions import PERMISSOES_CONFIGURAVEIS
 from app.db.base_mixins import utcnow
 from app.models.audit_log import AcaoAuditoria
 from app.models.role import Role, RoleCodigo
-from app.schemas.role import RoleCreate, RoleUpdate
+from app.schemas.role import RoleCreate, RolePermissoesUpdate, RoleUpdate
 
 ROLES_PROTEGIDAS = {
     RoleCodigo.ADMIN_GLOBAL,
     RoleCodigo.SUPERVISOR,
     RoleCodigo.BIOMEDICO,
     RoleCodigo.TECNICO,
+    RoleCodigo.RT,
 }
+
+# Só Biomédico/Técnico têm a matriz configurável pela tela Permissões —
+# Admin Global e Supervisor sempre têm tudo liberado (ver
+# app.core.permissions.require_permission), editar a lista deles não teria
+# efeito nenhum, então a rota nem deixa tentar.
+ROLES_COM_PERMISSOES_CONFIGURAVEIS = {RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO}
 
 
 def list_roles(db: Session) -> list[Role]:
@@ -68,6 +76,30 @@ def update_role(db: Session, role_id: uuid.UUID, payload: RoleUpdate, *, actor_i
     db.flush()
     registrar_auditoria(
         db, acao=AcaoAuditoria.EDICAO, entidade="role", entidade_id=role.id, usuario_id=actor_id
+    )
+    db.commit()
+    db.refresh(role)
+    return role
+
+
+def update_permissoes(db: Session, role_id: uuid.UUID, payload: RolePermissoesUpdate, *, actor_id: uuid.UUID) -> Role:
+    role = get_role(db, role_id)
+    if role.codigo not in ROLES_COM_PERMISSOES_CONFIGURAVEIS:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Só é possível configurar permissões de Biomédico ou Técnico — Admin Global e Supervisor sempre têm tudo liberado.",
+        )
+    invalidas = [p for p in payload.permissoes if p not in PERMISSOES_CONFIGURAVEIS]
+    if invalidas:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Permissão(ões) inválida(s): {', '.join(invalidas)}.")
+
+    role.permissoes = list(dict.fromkeys(payload.permissoes))
+    role.updated_by = actor_id
+    role.updated_at = utcnow()
+    db.flush()
+    registrar_auditoria(
+        db, acao=AcaoAuditoria.EDICAO, entidade="role_permissoes", entidade_id=role.id, usuario_id=actor_id,
+        detalhes={"permissoes": role.permissoes},
     )
     db.commit()
     db.refresh(role)

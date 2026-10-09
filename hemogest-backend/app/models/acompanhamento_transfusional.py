@@ -1,9 +1,15 @@
 """
-HemoGest — Acompanhamento Transfusional (Fase 6, o coração do sistema).
-Um acompanhamento liga uma bolsa a uma internação e acumula sinais vitais
-nos momentos protocolares (Pré, 10min, 1h, Final, Extras). Finalizar marca
-a bolsa como TRANSFUNDIDO; uma intercorrência pode abrir uma Reação
-Transfusional (Fase 7), mas não impede a finalização do acompanhamento.
+HemoGest — Acompanhamento Transfusional (o coração do sistema).
+Um acompanhamento liga uma Solicitação Transfusional (que já tem paciente,
+setor e hemocomponente) e acumula sinais vitais nos momentos protocolares
+(Pré, 10min, 1h, Final, Extras). Uma intercorrência pode abrir uma Reação
+Transfusional, mas não impede a finalização do acompanhamento.
+
+Antes ligava a uma internação + uma bolsa reservada (Fase 6 original) — sem
+uso real de estoque de bolsas nem de internação neste hospital
+(2026-09-30, pedido do cliente), passou a ligar direto à Solicitação. Se o
+controle de bolsas for reativado no futuro, a bolsa efetivamente usada pode
+voltar a ser registrada aqui (ou consultada via a Solicitação).
 """
 import uuid
 from datetime import datetime
@@ -34,11 +40,8 @@ class MomentoSinalVital:
 class AcompanhamentoTransfusional(Base, BaseEntity, TenantMixin):
     __tablename__ = "acompanhamento_transfusional"
 
-    internacao_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("internacao.id"), nullable=False, index=True
-    )
-    unidade_hemocomponente_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("unidade_hemocomponente.id"), nullable=False, index=True
+    solicitacao_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("solicitacao_transfusional.id"), nullable=False, index=True
     )
     status: Mapped[str] = mapped_column(String(15), nullable=False, default=StatusAcompanhamento.AGUARDANDO)
     data_inicio: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

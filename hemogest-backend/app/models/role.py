@@ -1,7 +1,9 @@
 """
 HemoGest — Role (RBAC).
-Perfis fixos da V1 (SRS §Regras de Negócio — Controle de permissões):
-  ADMIN_GLOBAL, SUPERVISOR, BIOMEDICO, TECNICO
+Perfis fixos (SRS §Regras de Negócio — Controle de permissões):
+  ADMIN_GLOBAL, SUPERVISOR, BIOMEDICO, TECNICO, RT
+RT (2026-09-30, pedido do cliente) é o médico Responsável Técnico da
+agência transfusional — mesma liberação total do Supervisor.
 Role é uma entidade global (não pertence a uma unidade específica), pois o
 Administrador Global pode atuar sobre múltiplas unidades.
 """
@@ -19,6 +21,7 @@ class RoleCodigo:
     SUPERVISOR = "SUPERVISOR"
     BIOMEDICO = "BIOMEDICO"
     TECNICO = "TECNICO"
+    RT = "RT"
 
 
 class Role(Base, BaseEntity):

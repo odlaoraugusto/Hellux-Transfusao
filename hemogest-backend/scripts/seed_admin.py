@@ -12,7 +12,7 @@ Cria (se ainda não existirem):
 
 Uso:
     python scripts/seed_admin.py
-    python scripts/seed_admin.py --email admin@hemogest.internal --senha MinhaSenha123 --nome "Admin"
+    python scripts/seed_admin.py --login admin --senha MinhaSenha123 --nome "Admin"
 
 Idempotente: pode ser executado várias vezes; só cria o que ainda não existe.
 """
@@ -39,7 +39,7 @@ ROLES_PADRAO = [
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cria o primeiro Admin Global do HemoGest.")
-    parser.add_argument("--email", default="admin@hemogest.internal")
+    parser.add_argument("--login", default="admin")
     parser.add_argument("--senha", default="TrocarSenha123!")
     parser.add_argument("--nome", default="Administrador")
     parser.add_argument(
@@ -66,14 +66,14 @@ def main() -> None:
                 print(f"Role criada: {codigo}")
             roles_por_codigo[codigo] = role
 
-        usuario = db.query(Usuario).filter(Usuario.email == args.email).first()
+        usuario = db.query(Usuario).filter(Usuario.login == args.login).first()
         if usuario is not None:
-            print(f"Usuário '{args.email}' já existe — nada a fazer.")
+            print(f"Usuário '{args.login}' já existe — nada a fazer.")
             return
 
         usuario = Usuario(
             nome=args.nome,
-            email=args.email,
+            login=args.login,
             senha_hash=hash_password(args.senha),
             role_id=roles_por_codigo[RoleCodigo.ADMIN_GLOBAL].id,
             unidade_hospitalar_id=None,
@@ -82,7 +82,7 @@ def main() -> None:
         )
         db.add(usuario)
         db.commit()
-        print(f"Admin Global criado: {args.email} / senha: {args.senha}")
+        print(f"Admin Global criado: {args.login} / senha: {args.senha}")
         print("Troque a senha após o primeiro login (POST /api/v1/auth/change-password).")
     finally:
         db.close()

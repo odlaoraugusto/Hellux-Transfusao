@@ -113,9 +113,9 @@ export function DashboardPage() {
               <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="entradas" stroke="#2E7D32" name="Entradas" />
-              <Line type="monotone" dataKey="saidas" stroke="#C62828" name="Saídas" />
+              <Line type="monotone" dataKey="saidas" stroke="#3E6E68" name="Saídas" />
               <Line type="monotone" dataKey="descartes" stroke="#F9A825" name="Descartes" />
-              <Line type="monotone" dataKey="retornos" stroke="#8E1B1B" name="Retornos" />
+              <Line type="monotone" dataKey="retornos" stroke="#2A4E49" name="Retornos" />
             </LineChart>
           </ResponsiveContainer>
         </Card>

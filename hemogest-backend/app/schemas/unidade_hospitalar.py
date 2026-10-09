@@ -11,6 +11,7 @@ class UnidadeHospitalarCreate(BaseModel):
     endereco: str | None = Field(default=None, max_length=255)
     cidade: str | None = Field(default=None, max_length=120)
     uf: str | None = Field(default=None, min_length=2, max_length=2)
+    telefone: str | None = Field(default=None, max_length=20)
 
 
 class UnidadeHospitalarUpdate(BaseModel):
@@ -20,6 +21,7 @@ class UnidadeHospitalarUpdate(BaseModel):
     endereco: str | None = Field(default=None, max_length=255)
     cidade: str | None = Field(default=None, max_length=120)
     uf: str | None = Field(default=None, min_length=2, max_length=2)
+    telefone: str | None = Field(default=None, max_length=20)
     ativo: bool | None = None
 
 
@@ -34,6 +36,7 @@ class UnidadeHospitalarOut(BaseModel):
     endereco: str | None
     cidade: str | None
     uf: str | None
+    telefone: str | None
     logo_object_name: str | None
     ativo: bool
 

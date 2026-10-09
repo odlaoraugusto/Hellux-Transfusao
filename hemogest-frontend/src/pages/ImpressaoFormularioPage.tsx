@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Copy, Printer } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { FormularioImpressao } from "@/components/FormularioImpressao";
+import { abrirBlobPdf, gerarPdfSolicitacao } from "@/lib/gerarPdfSolicitacao";
 import type { FormularioSolicitacao } from "@/types";
 
 /**
@@ -19,7 +20,8 @@ export function ImpressaoFormularioPage({ modo }: { modo: "publico" | "interno" 
 
   const [dados, setDados] = useState<FormularioSolicitacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [copiado, setCopiado] = useState<"sim" | "falhou" | null>(null);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [erroPdf, setErroPdf] = useState<string | null>(null);
 
   useEffect(() => {
     const caminho = modo === "publico" ? `/publico/formularios/${token}` : `/formularios-solicitacao/${id}`;
@@ -38,12 +40,37 @@ export function ImpressaoFormularioPage({ modo }: { modo: "publico" | "interno" 
       );
   }, [modo, token, id]);
 
-  async function copiarLink() {
+  async function imprimirPdfOficial() {
+    if (!dados) return;
+    setErroPdf(null);
+    setGerandoPdf(true);
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopiado("sim");
+      const bytes = await gerarPdfSolicitacao(dados);
+      const url = abrirBlobPdf(bytes);
+      // Manda direto pra caixa de diálogo de impressão do navegador (que já
+      // escolhe a impressora), em vez de baixar um arquivo (2026-09-30,
+      // pedido do cliente) — iframe oculto carrega o PDF e dispara o print.
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      };
+      document.body.appendChild(iframe);
+      setTimeout(() => {
+        iframe.remove();
+        URL.revokeObjectURL(url);
+      }, 120_000);
     } catch {
-      setCopiado("falhou");
+      setErroPdf("Não foi possível gerar o PDF oficial. Tente novamente.");
+    } finally {
+      setGerandoPdf(false);
     }
   }
 
@@ -62,24 +89,17 @@ export function ImpressaoFormularioPage({ modo }: { modo: "publico" | "interno" 
           )
         )}
         <div className="flex-1" />
-        {modo === "publico" && (
-          <Button variant="secondary" onClick={copiarLink} className="flex items-center gap-2 bg-white">
-            <Copy size={16} />
-            {copiado === "sim" ? "Link copiado" : "Copiar link para imprimir depois"}
-          </Button>
-        )}
-        <Button onClick={() => window.print()} disabled={!dados} className="flex items-center gap-2">
+        <Button onClick={imprimirPdfOficial} disabled={!dados || gerandoPdf} className="flex items-center gap-2">
           <Printer size={16} />
-          Imprimir
+          {gerandoPdf ? "Gerando PDF..." : "Imprimir PDF oficial (STH)"}
         </Button>
       </div>
 
+      {erroPdf && <p className="mx-auto mb-3 max-w-[210mm] rounded-lg bg-danger/10 p-3 text-sm text-danger print:hidden">{erroPdf}</p>}
+
       {modo === "publico" && (
         <p className="mx-auto mb-3 max-w-[210mm] text-sm text-neutral-700 print:hidden" role="status">
-          {copiado === "falhou"
-            ? "Não foi possível copiar. Guarde o endereço desta página para imprimir de novo."
-            : "Formulário gravado. Quem tiver o endereço desta página consegue reabri-lo para imprimir, por isso guarde o link."}{" "}
-          Para salvar em PDF, escolha “Salvar como PDF” na janela de impressão.
+          Use “Imprimir PDF oficial” para gerar o documento (STH) já preenchido e mandar direto para a impressora.
         </p>
       )}
 

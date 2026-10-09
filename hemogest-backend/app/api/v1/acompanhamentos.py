@@ -3,13 +3,13 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.role import RoleCodigo
 from app.schemas.acompanhamento_transfusional import (
     AcompanhamentoCreate,
     AcompanhamentoFinalizarRequest,
+    AcompanhamentoIniciarRequest,
     AcompanhamentoOut,
     SinalVitalCreate,
     SinalVitalOut,
@@ -17,7 +17,7 @@ from app.schemas.acompanhamento_transfusional import (
 from app.services import acompanhamento_transfusional_service as svc
 
 router = APIRouter(prefix="/acompanhamentos", tags=["Acompanhamento Transfusional"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("acompanhamentos_gerenciar")
 
 
 @router.get("/{acompanhamento_id}", response_model=AcompanhamentoOut)
@@ -38,11 +38,15 @@ def criar(
 @router.post("/{acompanhamento_id}/iniciar", response_model=AcompanhamentoOut)
 def iniciar(
     acompanhamento_id: uuid.UUID,
+    payload: AcompanhamentoIniciarRequest = AcompanhamentoIniciarRequest(),
     db: Session = Depends(get_db),
     ctx: TenantContext = Depends(require_unidade_resolvida),
     user=Depends(_pode_escrever),
 ):
-    return svc.iniciar(db, acompanhamento_id, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id)
+    return svc.iniciar(
+        db, acompanhamento_id, data_inicio=payload.data_inicio,
+        unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id,
+    )
 
 
 @router.get("/{acompanhamento_id}/sinais-vitais", response_model=list[SinalVitalOut])
@@ -75,5 +79,5 @@ def finalizar(
 ):
     return svc.finalizar(
         db, acompanhamento_id, payload.observacoes_finalizacao, payload.houve_intercorrencia,
-        unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id,
+        data_fim=payload.data_fim, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id,
     )

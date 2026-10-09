@@ -11,13 +11,16 @@ from sqlalchemy.orm import Session
 from app.core.permissions import require_roles
 from app.db.session import get_db
 from app.models.role import RoleCodigo
-from app.schemas.role import RoleCreate, RoleOut, RoleUpdate
+from app.schemas.role import RoleCreate, RoleOut, RolePermissoesUpdate, RoleUpdate
 from app.services import role_service
 
 router = APIRouter(prefix="/roles", tags=["Roles"])
 
-_pode_ler = require_roles(RoleCodigo.SUPERVISOR)
+_pode_ler = require_roles(RoleCodigo.SUPERVISOR, RoleCodigo.RT)
 _pode_escrever = require_roles()  # nenhum código extra => só ADMIN_GLOBAL passa
+# Tela Permissões (2026-09-30, pedido do cliente): Supervisor também edita
+# a matriz de Biomédico/Técnico, sem precisar do Admin Global pra isso.
+_pode_gerenciar_permissoes = require_roles(RoleCodigo.SUPERVISOR, RoleCodigo.RT)
 
 
 @router.get("", response_model=list[RoleOut])
@@ -48,3 +51,16 @@ def atualizar_role(
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 def excluir_role(role_id: uuid.UUID, db: Session = Depends(get_db), user=Depends(_pode_escrever)):
     role_service.delete_role(db, role_id, actor_id=user.id)
+
+
+@router.patch("/{role_id}/permissoes", response_model=RoleOut)
+def atualizar_permissoes(
+    role_id: uuid.UUID,
+    payload: RolePermissoesUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(_pode_gerenciar_permissoes),
+):
+    """Tela Permissões — só Biomédico/Técnico têm matriz configurável;
+    Admin Global e Supervisor sempre têm tudo liberado (ver
+    app.services.role_service.ROLES_COM_PERMISSOES_CONFIGURAVEIS)."""
+    return role_service.update_permissoes(db, role_id, payload, actor_id=user.id)

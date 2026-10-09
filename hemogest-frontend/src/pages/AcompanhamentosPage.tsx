@@ -6,19 +6,43 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import type { Paciente } from "@/types";
 
 interface AcompanhamentoResumo {
   id: string;
-  internacao_id: string;
-  unidade_hemocomponente_id: string;
+  solicitacao_id: string;
+  paciente_nome: string;
+  setor_nome: string;
+  hemocomponente_nome: string;
   status: string;
   data_inicio: string | null;
   data_fim: string | null;
 }
 
-interface AcompanhamentoDetalhe extends AcompanhamentoResumo {
+interface AcompanhamentoDetalhe {
+  id: string;
+  solicitacao_id: string;
+  status: string;
+  data_inicio: string | null;
+  data_fim: string | null;
   observacoes_finalizacao: string | null;
+}
+
+interface BolsaResumo {
+  id: string;
+  numero_bolsa: string;
+  tipo_sanguineo: string;
+}
+
+interface SolicitacaoResumo {
+  id: string;
+  paciente_nome: string;
+  setor_nome: string;
+  hemocomponente_nome: string;
+  hemocomponente_sigla: string | null;
+  quantidade: number;
+  status: string;
+  bolsas_entregues: number;
+  bolsas: BolsaResumo[];
 }
 
 interface SinalVital {
@@ -33,29 +57,6 @@ interface SinalVital {
   observacoes: string | null;
 }
 
-interface Bolsa {
-  id: string;
-  numero_bolsa: string;
-  status: string;
-  paciente_reservado_id: string | null;
-}
-
-interface InternacaoResumo {
-  id: string;
-  paciente_id: string;
-  numero_internacao: string | null;
-  data_entrada: string;
-  data_alta: string | null;
-  status: string;
-}
-
-interface Setor {
-  id: string;
-  nome: string;
-  sigla: string | null;
-  ativo: boolean;
-}
-
 interface SinalVitalForm {
   momento: string;
   temperatura_c: string;
@@ -64,14 +65,6 @@ interface SinalVitalForm {
   frequencia_respiratoria_ipm: string;
   saturacao_o2_pct: string;
   observacoes: string;
-}
-
-interface InternacaoForm {
-  paciente_id: string;
-  setor_id: string;
-  numero_internacao: string;
-  leito: string;
-  data_entrada: string;
 }
 
 const STATUS_ROTULOS: Record<string, string> = {
@@ -101,14 +94,6 @@ const SINAL_VAZIO: SinalVitalForm = {
   observacoes: "",
 };
 
-const INTERNACAO_VAZIA: InternacaoForm = {
-  paciente_id: "",
-  setor_id: "",
-  numero_internacao: "",
-  leito: "",
-  data_entrada: "",
-};
-
 function mensagemErro(err: unknown, padrao: string): string {
   if (err instanceof ApiError && err.body && typeof err.body === "object" && "detail" in err.body) {
     const detalhe = (err.body as { detail?: unknown }).detail;
@@ -124,6 +109,11 @@ function formatarDataHora(iso: string | null): string {
   return data.toLocaleString("pt-BR");
 }
 
+/** Abre a partir de uma Solicitação Transfusional já registrada (a
+ * solicitação em si vem do formulário público, automaticamente) — não
+ * depende de internação nem de bolsa reservada: controle de estoque de
+ * bolsas está inativo neste hospital por enquanto (2026-09-30, pedido do
+ * cliente). */
 export function AcompanhamentosPage() {
   const { unidadeAtivaId } = useAuth();
 
@@ -131,12 +121,12 @@ export function AcompanhamentosPage() {
   const [carregandoLista, setCarregandoLista] = useState(true);
   const [erroLista, setErroLista] = useState<string | null>(null);
 
-  const [pacientes, setPacientes] = useState<Paciente[]>([]);
-  const [internacoes, setInternacoes] = useState<InternacaoResumo[]>([]);
-  const [bolsas, setBolsas] = useState<Bolsa[]>([]);
+  const [todasSolicitacoes, setTodasSolicitacoes] = useState<SolicitacaoResumo[]>([]);
+  const solicitacoesAbertas = todasSolicitacoes.filter((s) => s.status === "SOLICITADO" || s.status === "EM_PROCESSAMENTO");
 
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<AcompanhamentoDetalhe | null>(null);
+  const [solicitacaoDetalhe, setSolicitacaoDetalhe] = useState<SolicitacaoResumo | null>(null);
   const [sinaisVitais, setSinaisVitais] = useState<SinalVital[]>([]);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
   const [erroDetalhe, setErroDetalhe] = useState<string | null>(null);
@@ -144,16 +134,9 @@ export function AcompanhamentosPage() {
   const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   const [formNovoAberto, setFormNovoAberto] = useState(false);
-  const [internacaoIdNovo, setInternacaoIdNovo] = useState("");
-  const [bolsaIdNovo, setBolsaIdNovo] = useState("");
+  const [solicitacaoIdNovo, setSolicitacaoIdNovo] = useState("");
   const [salvandoNovo, setSalvandoNovo] = useState(false);
   const [erroNovo, setErroNovo] = useState<string | null>(null);
-
-  const [novaInternacaoAberta, setNovaInternacaoAberta] = useState(false);
-  const [setores, setSetores] = useState<Setor[]>([]);
-  const [formInternacao, setFormInternacao] = useState<InternacaoForm>(INTERNACAO_VAZIA);
-  const [salvandoInternacao, setSalvandoInternacao] = useState(false);
-  const [erroInternacao, setErroInternacao] = useState<string | null>(null);
 
   const [formSinal, setFormSinal] = useState<SinalVitalForm>(SINAL_VAZIO);
   const [salvandoSinal, setSalvandoSinal] = useState(false);
@@ -164,37 +147,12 @@ export function AcompanhamentosPage() {
   const [finalizando, setFinalizando] = useState(false);
   const [erroFinalizar, setErroFinalizar] = useState<string | null>(null);
 
-  const mapaPacientes = useMemo(() => {
-    const mapa = new Map<string, string>();
-    pacientes.forEach((p) => mapa.set(p.id, p.nome));
-    return mapa;
-  }, [pacientes]);
-
-  const mapaInternacoes = useMemo(() => {
-    const mapa = new Map<string, InternacaoResumo>();
-    internacoes.forEach((i) => mapa.set(i.id, i));
-    return mapa;
-  }, [internacoes]);
-
-  const mapaBolsas = useMemo(() => {
-    const mapa = new Map<string, Bolsa>();
-    bolsas.forEach((b) => mapa.set(b.id, b));
-    return mapa;
-  }, [bolsas]);
-
-  const internacoesAtivas = useMemo(() => internacoes.filter((i) => !i.data_alta), [internacoes]);
-  const bolsasReservadas = useMemo(() => bolsas.filter((b) => b.status === "RESERVADO"), [bolsas]);
-
-  function nomeInternacao(internacaoId: string): string {
-    const internacao = mapaInternacoes.get(internacaoId);
-    if (!internacao) return "—";
-    const paciente = mapaPacientes.get(internacao.paciente_id) ?? "Paciente não identificado";
-    return internacao.numero_internacao ? `${paciente} — ${internacao.numero_internacao}` : paciente;
-  }
-
-  function nomeBolsa(bolsaId: string): string {
-    return mapaBolsas.get(bolsaId)?.numero_bolsa ?? "—";
-  }
+  // Horário de início/término manuais (2026-10-05, pedido do cliente: "permitir
+  // colocar o horário de início e término da infusão, atualmente pega o
+  // horario automaticamente") — em branco mantém o comportamento antigo
+  // (servidor usa o horário do momento da ação).
+  const [horaInicioManual, setHoraInicioManual] = useState("");
+  const [horaFimManual, setHoraFimManual] = useState("");
 
   function carregarLista() {
     if (!unidadeAtivaId) return;
@@ -207,39 +165,29 @@ export function AcompanhamentosPage() {
       .finally(() => setCarregandoLista(false));
   }
 
-  function carregarCadastros() {
+  function carregarSolicitacoesAbertas() {
     if (!unidadeAtivaId) return;
-    Promise.all([
-      api.get<Paciente[]>("/pacientes?limit=200"),
-      api.get<InternacaoResumo[]>("/relatorios/internacoes?format=json"),
-      api.get<Bolsa[]>("/hemocomponentes-bolsas?limit=200"),
-    ])
-      .then(([listaPacientes, listaInternacoes, listaBolsas]) => {
-        setPacientes(listaPacientes);
-        setInternacoes(listaInternacoes);
-        setBolsas(listaBolsas);
-      })
-      .catch(() => {
-        setPacientes([]);
-        setInternacoes([]);
-        setBolsas([]);
-      });
+    api
+      .get<SolicitacaoResumo[]>("/solicitacoes")
+      .then(setTodasSolicitacoes)
+      .catch(() => setTodasSolicitacoes([]));
   }
 
   useEffect(() => {
     carregarLista();
-    carregarCadastros();
+    carregarSolicitacoesAbertas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unidadeAtivaId]);
 
-  useEffect(() => {
-    if (!novaInternacaoAberta || setores.length > 0) return;
-    api
-      .get<Setor[]>("/setores")
-      .then(setSetores)
-      .catch(() => setSetores([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [novaInternacaoAberta]);
+  // Solicitações com pelo menos 1 bolsa já entregue mas que ainda não têm
+  // nenhum Acompanhamento aberto — fica visível pra equipe não esquecer de
+  // abrir o acompanhamento assim que a bolsa chega no setor (2026-10-01,
+  // pedido do cliente: não abrir sozinho, só deixar a pendência visível).
+  const idsComAcompanhamento = useMemo(() => new Set(lista.map((a) => a.solicitacao_id)), [lista]);
+  const pendentes = useMemo(
+    () => todasSolicitacoes.filter((s) => s.bolsas_entregues > 0 && !idsComAcompanhamento.has(s.id)),
+    [todasSolicitacoes, idsComAcompanhamento],
+  );
 
   function carregarDetalhe(id: string) {
     setCarregandoDetalhe(true);
@@ -251,7 +199,9 @@ export function AcompanhamentosPage() {
       .then(([det, sinais]) => {
         setDetalhe(det);
         setSinaisVitais(sinais);
+        return api.get<SolicitacaoResumo>(`/solicitacoes/${det.solicitacao_id}`);
       })
+      .then(setSolicitacaoDetalhe)
       .catch((err) => setErroDetalhe(mensagemErro(err, "Não foi possível carregar o acompanhamento.")))
       .finally(() => setCarregandoDetalhe(false));
   }
@@ -264,38 +214,31 @@ export function AcompanhamentosPage() {
     setHouveIntercorrencia(false);
     setObservacoesFinalizacao("");
     setErroFinalizar(null);
+    setHoraInicioManual("");
+    setHoraFimManual("");
     carregarDetalhe(id);
   }
 
   function abrirFormNovo() {
     setFormNovoAberto(true);
-    setInternacaoIdNovo("");
-    setBolsaIdNovo("");
+    setSolicitacaoIdNovo("");
     setErroNovo(null);
-    setNovaInternacaoAberta(false);
-    setFormInternacao(INTERNACAO_VAZIA);
-    setErroInternacao(null);
+    carregarSolicitacoesAbertas();
   }
 
   function fecharFormNovo() {
     setFormNovoAberto(false);
     setErroNovo(null);
-    setNovaInternacaoAberta(false);
-    setErroInternacao(null);
   }
 
-  async function criarAcompanhamento(e: FormEvent) {
-    e.preventDefault();
-    if (!internacaoIdNovo || !bolsaIdNovo) return;
+  async function abrirAcompanhamentoPara(solicitacaoId: string) {
     setSalvandoNovo(true);
     setErroNovo(null);
     try {
-      const criado = await api.post<AcompanhamentoDetalhe>("/acompanhamentos", {
-        internacao_id: internacaoIdNovo,
-        unidade_hemocomponente_id: bolsaIdNovo,
-      });
+      const criado = await api.post<AcompanhamentoDetalhe>("/acompanhamentos", { solicitacao_id: solicitacaoId });
       fecharFormNovo();
       carregarLista();
+      carregarSolicitacoesAbertas();
       abrirDetalhe(criado.id);
     } catch (err) {
       setErroNovo(mensagemErro(err, "Não foi possível abrir o acompanhamento."));
@@ -304,30 +247,10 @@ export function AcompanhamentosPage() {
     }
   }
 
-  async function criarInternacao() {
-    if (!formInternacao.paciente_id || !formInternacao.setor_id || !formInternacao.data_entrada) {
-      setErroInternacao("Preencha paciente, setor e data de entrada.");
-      return;
-    }
-    setSalvandoInternacao(true);
-    setErroInternacao(null);
-    try {
-      const nova = await api.post<InternacaoResumo>("/internacoes", {
-        paciente_id: formInternacao.paciente_id,
-        setor_id: formInternacao.setor_id,
-        numero_internacao: formInternacao.numero_internacao || null,
-        leito: formInternacao.leito || null,
-        data_entrada: formInternacao.data_entrada,
-      });
-      setInternacoes((prev) => [...prev, nova]);
-      setInternacaoIdNovo(nova.id);
-      setNovaInternacaoAberta(false);
-      setFormInternacao(INTERNACAO_VAZIA);
-    } catch (err) {
-      setErroInternacao(mensagemErro(err, "Não foi possível cadastrar a internação."));
-    } finally {
-      setSalvandoInternacao(false);
-    }
+  function criarAcompanhamento(e: FormEvent) {
+    e.preventDefault();
+    if (!solicitacaoIdNovo) return;
+    abrirAcompanhamentoPara(solicitacaoIdNovo);
   }
 
   async function iniciar() {
@@ -335,7 +258,9 @@ export function AcompanhamentosPage() {
     setProcessandoAcao(true);
     setErroAcao(null);
     try {
-      await api.post(`/acompanhamentos/${selecionadoId}/iniciar`);
+      await api.post(`/acompanhamentos/${selecionadoId}/iniciar`, {
+        data_inicio: horaInicioManual ? new Date(horaInicioManual).toISOString() : null,
+      });
       carregarDetalhe(selecionadoId);
       carregarLista();
     } catch (err) {
@@ -380,9 +305,11 @@ export function AcompanhamentosPage() {
       await api.post(`/acompanhamentos/${selecionadoId}/finalizar`, {
         observacoes_finalizacao: observacoesFinalizacao || null,
         houve_intercorrencia: houveIntercorrencia,
+        data_fim: horaFimManual ? new Date(horaFimManual).toISOString() : null,
       });
       setObservacoesFinalizacao("");
       setHouveIntercorrencia(false);
+      setHoraFimManual("");
       carregarDetalhe(selecionadoId);
       carregarLista();
     } catch (err) {
@@ -408,53 +335,61 @@ export function AcompanhamentosPage() {
         </Button>
       </div>
 
+      {pendentes.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950">
+          <h2 className="mb-1 text-lg font-medium text-amber-900 dark:text-amber-100">
+            Pendentes de Acompanhamento ({pendentes.length})
+          </h2>
+          <p className="mb-3 text-sm text-amber-800 dark:text-amber-200">
+            Já tem bolsa entregue ao setor, mas ainda não tem acompanhamento aberto.
+          </p>
+          <div className="divide-y divide-amber-200">
+            {pendentes.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="text-sm">
+                  <div className="font-medium text-ink">{s.paciente_nome}</div>
+                  <div className="text-ink-muted">
+                    {s.hemocomponente_sigla ?? s.hemocomponente_nome} · {s.setor_nome} · {s.bolsas_entregues}/{s.quantidade} entregues
+                  </div>
+                </div>
+                <Button onClick={() => abrirAcompanhamentoPara(s.id)} disabled={salvandoNovo} className="shrink-0 px-3 py-1.5 text-sm">
+                  Abrir Acompanhamento
+                </Button>
+              </div>
+            ))}
+          </div>
+          {erroNovo && <p className="mt-2 text-sm text-danger">{erroNovo}</p>}
+        </Card>
+      )}
+
       {formNovoAberto && (
         <Card>
           <h2 className="mb-4 text-lg font-medium">Novo Acompanhamento</h2>
           <form onSubmit={criarAcompanhamento} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Internação Ativa</label>
-                <select
-                  required
-                  value={internacaoIdNovo}
-                  onChange={(e) => setInternacaoIdNovo(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                >
-                  <option value="">Selecione...</option>
-                  {internacoesAtivas.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {mapaPacientes.get(i.paciente_id) ?? "Paciente não identificado"}
-                      {i.numero_internacao ? ` — ${i.numero_internacao}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Bolsa Reservada</label>
-                <select
-                  required
-                  value={bolsaIdNovo}
-                  onChange={(e) => setBolsaIdNovo(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                >
-                  <option value="">Selecione...</option>
-                  {bolsasReservadas.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.numero_bolsa}
-                      {b.paciente_reservado_id
-                        ? ` — ${mapaPacientes.get(b.paciente_reservado_id) ?? "paciente reservado"}`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Solicitação</label>
+              <select
+                required
+                value={solicitacaoIdNovo}
+                onChange={(e) => setSolicitacaoIdNovo(e.target.value)}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
+              >
+                <option value="">Selecione...</option>
+                {solicitacoesAbertas.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.paciente_nome} — {s.hemocomponente_sigla ?? s.hemocomponente_nome} ({s.setor_nome})
+                  </option>
+                ))}
+              </select>
+              {solicitacoesAbertas.length === 0 && (
+                <p className="mt-1 text-xs text-ink-muted">Nenhuma solicitação em aberto (Solicitada ou Em processamento) no momento.</p>
+              )}
             </div>
 
             {erroNovo && <p className="text-sm text-danger">{erroNovo}</p>}
 
             <div className="flex items-center gap-3">
-              <Button type="submit" disabled={salvandoNovo || !internacaoIdNovo || !bolsaIdNovo}>
+              <Button type="submit" disabled={salvandoNovo || !solicitacaoIdNovo}>
                 {salvandoNovo ? "Abrindo..." : "Abrir Acompanhamento"}
               </Button>
               <Button type="button" variant="ghost" onClick={fecharFormNovo}>
@@ -462,91 +397,6 @@ export function AcompanhamentosPage() {
               </Button>
             </div>
           </form>
-
-          {internacoesAtivas.length === 0 && (
-            <div className="mt-4 rounded-lg border border-dashed border-neutral-300 p-4">
-              <p className="text-sm text-ink-muted">
-                Nenhuma internação ativa encontrada.{" "}
-                <button
-                  type="button"
-                  onClick={() => setNovaInternacaoAberta((v) => !v)}
-                  className="font-medium text-hemo hover:underline"
-                >
-                  Cadastrar nova internação
-                </button>
-              </p>
-
-              {novaInternacaoAberta && (
-                <div className="mt-4 space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Paciente</label>
-                      <select
-                        value={formInternacao.paciente_id}
-                        onChange={(e) => setFormInternacao({ ...formInternacao, paciente_id: e.target.value })}
-                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                      >
-                        <option value="">Selecione...</option>
-                        {pacientes.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Setor</label>
-                      <select
-                        value={formInternacao.setor_id}
-                        onChange={(e) => setFormInternacao({ ...formInternacao, setor_id: e.target.value })}
-                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                      >
-                        <option value="">Selecione...</option>
-                        {setores.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Número da Internação (opcional)</label>
-                      <input
-                        maxLength={30}
-                        value={formInternacao.numero_internacao}
-                        onChange={(e) => setFormInternacao({ ...formInternacao, numero_internacao: e.target.value })}
-                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Leito (opcional)</label>
-                      <input
-                        maxLength={20}
-                        value={formInternacao.leito}
-                        onChange={(e) => setFormInternacao({ ...formInternacao, leito: e.target.value })}
-                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Data de Entrada</label>
-                      <input
-                        type="date"
-                        value={formInternacao.data_entrada}
-                        onChange={(e) => setFormInternacao({ ...formInternacao, data_entrada: e.target.value })}
-                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {erroInternacao && <p className="text-sm text-danger">{erroInternacao}</p>}
-
-                  <Button type="button" onClick={criarInternacao} disabled={salvandoInternacao}>
-                    {salvandoInternacao ? "Cadastrando..." : "Cadastrar Internação"}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
         </Card>
       )}
 
@@ -555,7 +405,7 @@ export function AcompanhamentosPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-neutral-200 text-left text-ink-muted">
               <tr>
-                <th className="px-4 py-3 font-medium">Internação</th>
+                <th className="px-4 py-3 font-medium">Paciente</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Início</th>
               </tr>
@@ -589,7 +439,12 @@ export function AcompanhamentosPage() {
                       selecionadoId === a.id && "bg-hemo/5",
                     )}
                   >
-                    <td className="px-4 py-3">{nomeInternacao(a.internacao_id)}</td>
+                    <td className="px-4 py-3">
+                      <div>{a.paciente_nome}</div>
+                      <div className="text-xs text-ink-muted">
+                        {a.hemocomponente_nome} · {a.setor_nome}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <Badge status={a.status}>{STATUS_ROTULOS[a.status] ?? a.status}</Badge>
                     </td>
@@ -623,12 +478,39 @@ export function AcompanhamentosPage() {
                 </div>
                 <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="text-ink-muted">Internação</dt>
-                    <dd>{nomeInternacao(detalhe.internacao_id)}</dd>
+                    <dt className="text-ink-muted">Paciente</dt>
+                    <dd>{solicitacaoDetalhe?.paciente_nome ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-ink-muted">Bolsa</dt>
-                    <dd>{nomeBolsa(detalhe.unidade_hemocomponente_id)}</dd>
+                    <dt className="text-ink-muted">Setor</dt>
+                    <dd>{solicitacaoDetalhe?.setor_nome ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-muted">Hemocomponente</dt>
+                    <dd>
+                      {solicitacaoDetalhe
+                        ? `${solicitacaoDetalhe.hemocomponente_sigla ?? solicitacaoDetalhe.hemocomponente_nome} × ${solicitacaoDetalhe.quantidade}`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-ink-muted">Bolsa(s)</dt>
+                    <dd>
+                      {solicitacaoDetalhe && solicitacaoDetalhe.bolsas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {solicitacaoDetalhe.bolsas.map((b) => (
+                            <span
+                              key={b.id}
+                              className="rounded-full bg-hemo/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-hemo"
+                            >
+                              {b.numero_bolsa} · {b.tipo_sanguineo}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-ink-muted">Início</dt>
@@ -649,7 +531,18 @@ export function AcompanhamentosPage() {
                 {erroAcao && <p className="mt-3 text-sm text-danger">{erroAcao}</p>}
 
                 {detalhe.status === "AGUARDANDO" && (
-                  <div className="mt-4">
+                  <div className="mt-4 space-y-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">
+                        Horário de início (opcional — em branco usa o horário atual)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={horaInicioManual}
+                        onChange={(e) => setHoraInicioManual(e.target.value)}
+                        className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
+                      />
+                    </div>
                     <Button onClick={iniciar} disabled={processandoAcao}>
                       {processandoAcao ? "Iniciando..." : "Iniciar Acompanhamento"}
                     </Button>
@@ -803,6 +696,17 @@ export function AcompanhamentosPage() {
                       />
                       Houve intercorrência
                     </label>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">
+                        Horário de término (opcional — em branco usa o horário atual)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={horaFimManual}
+                        onChange={(e) => setHoraFimManual(e.target.value)}
+                        className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
+                      />
+                    </div>
                     <div>
                       <label className="mb-1 block text-sm font-medium">Observações de Finalização (opcional)</label>
                       <textarea

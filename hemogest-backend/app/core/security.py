@@ -15,12 +15,6 @@ from app.core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def generate_opaque_token() -> str:
-    """Usado para refresh tokens e tokens de recuperação de senha —
-    valor aleatório que trafega para o cliente; só o hash fica no banco."""
-    return secrets.token_urlsafe(48)
-
-
 def hash_opaque_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -52,6 +46,11 @@ def _create_token(
         "type": token_type,
         "iat": now,
         "exp": now + expires_delta,
+        # jti evita colisão de hash quando dois tokens do mesmo usuário e
+        # tipo são emitidos no mesmo segundo (iat só tem resolução de
+        # segundo) — bug real visto em teste: dois logins rápidos geravam
+        # o mesmo refresh_token e batiam na constraint única da tabela.
+        "jti": secrets.token_hex(16),
     }
     if extra_claims:
         payload.update(extra_claims)

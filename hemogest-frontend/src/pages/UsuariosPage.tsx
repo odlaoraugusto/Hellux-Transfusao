@@ -8,7 +8,8 @@ import type { Role, Usuario, UnidadeHospitalar } from "@/types";
 
 interface FormState {
   nome: string;
-  email: string;
+  login: string;
+  senha: string;
   role_id: string;
   unidade_hospitalar_id: string;
   ativo: boolean;
@@ -16,7 +17,8 @@ interface FormState {
 
 const FORM_VAZIO: FormState = {
   nome: "",
-  email: "",
+  login: "",
+  senha: "",
   role_id: "",
   unidade_hospitalar_id: "",
   ativo: true,
@@ -25,7 +27,8 @@ const FORM_VAZIO: FormState = {
 function paraFormulario(u: Usuario): FormState {
   return {
     nome: u.nome,
-    email: u.email,
+    login: u.login,
+    senha: "",
     role_id: u.role_id,
     unidade_hospitalar_id: u.unidade_hospitalar_id ?? "",
     ativo: u.ativo,
@@ -139,8 +142,14 @@ export function UsuariosPage() {
         if (isAdminGlobal) {
           payload.unidade_hospitalar_id = form.unidade_hospitalar_id || null;
         }
+        // Senha só entra no payload se foi preenchida — presença = reset
+        // (a pessoa troca no próximo login).
+        if (form.senha) payload.senha = form.senha;
         await api.put(`/usuarios/${editando.id}`, payload);
         fecharForm();
+        if (form.senha) {
+          setAviso(`Senha de "${editando.nome}" redefinida. Repasse a nova senha para a pessoa — ela vai trocar no próximo login.`);
+        }
       } else {
         // Unidade não aparece no formulário para perfis não-admin: a
         // unidade do novo usuário é implicitamente a do próprio criador.
@@ -149,15 +158,14 @@ export function UsuariosPage() {
           : (usuario?.unidade_hospitalar_id ?? null);
         await api.post("/usuarios", {
           nome: form.nome,
-          email: form.email,
+          login: form.login,
+          senha: form.senha,
           role_id: form.role_id,
           unidade_hospitalar_id: unidadeParaEnviar,
         });
         setFormAberto(false);
         setEditando(null);
-        setAviso(
-          "Usuário criado. O acesso inicial depende de um fluxo de definição de senha ainda não integrado ao e-mail — funcionalidade pendente no backend.",
-        );
+        setAviso(`Usuário "${form.nome}" criado com login "${form.login}". Repasse a senha temporária para a pessoa — ela vai trocar no primeiro login.`);
       }
       carregar();
     } catch (err) {
@@ -214,15 +222,35 @@ export function UsuariosPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">E-mail</label>
+              <label className="mb-1 block text-sm font-medium">Login</label>
               <input
                 required
-                type="email"
+                type="text"
+                autoComplete="off"
                 disabled={!!editando}
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="ex.: maria.supervisora"
+                value={form.login}
+                onChange={(e) => setForm({ ...form, login: e.target.value })}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none disabled:bg-neutral-100 disabled:text-ink-muted"
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">{editando ? "Redefinir senha" : "Senha temporária"}</label>
+              <input
+                required={!editando}
+                type="text"
+                autoComplete="off"
+                minLength={8}
+                placeholder={editando ? "Deixe em branco para manter a atual" : "Mínimo de 8 caracteres"}
+                value={form.senha}
+                onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-ink-muted">
+                {editando
+                  ? "Preencher aqui reseta a senha — a pessoa troca no próximo login."
+                  : "A pessoa troca essa senha no primeiro login. Repasse por fora (nunca por aqui)."}
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Perfil</label>
@@ -293,7 +321,7 @@ export function UsuariosPage() {
           <thead className="border-b border-neutral-200 text-left text-ink-muted">
             <tr>
               <th className="px-4 py-3 font-medium">Nome</th>
-              <th className="px-4 py-3 font-medium">E-mail</th>
+              <th className="px-4 py-3 font-medium">Login</th>
               <th className="px-4 py-3 font-medium">Perfil</th>
               {isAdminGlobal && <th className="px-4 py-3 font-medium">Unidade</th>}
               <th className="px-4 py-3 font-medium">Status</th>
@@ -331,7 +359,7 @@ export function UsuariosPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">{u.email}</td>
+                  <td className="px-4 py-3">{u.login}</td>
                   <td className="px-4 py-3">{resolverNomeRole(u.role_id)}</td>
                   {isAdminGlobal && <td className="px-4 py-3">{resolverNomeUnidade(u.unidade_hospitalar_id)}</td>}
                   <td className="px-4 py-3">

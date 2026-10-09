@@ -98,8 +98,8 @@ function BuscaBolsa({ termo, onTermoChange, resultados, buscando, selecionada, o
 export function DevolucoesDescartesPage() {
   const { unidadeAtivaId } = useAuth();
 
-  const [motivosDevolucao, setMotivosDevolucao] = useState<Motivo[]>([]);
-  const [motivosDescarte, setMotivosDescarte] = useState<Motivo[]>([]);
+  // Motivos de devolução e descarte usam a mesma lista (/motivos-devolucao) desde 2026-10-05.
+  const [motivos, setMotivos] = useState<Motivo[]>([]);
   const [bolsasCache, setBolsasCache] = useState<Bolsa[]>([]);
 
   const [devolucoes, setDevolucoes] = useState<DevolucaoHistorico[]>([]);
@@ -125,17 +125,11 @@ export function DevolucoesDescartesPage() {
   const [salvandoDescarte, setSalvandoDescarte] = useState(false);
   const [erroDescarte, setErroDescarte] = useState<string | null>(null);
 
-  const mapaMotivosDevolucao = useMemo(() => {
+  const mapaMotivos = useMemo(() => {
     const mapa = new Map<string, string>();
-    motivosDevolucao.forEach((m) => mapa.set(m.id, m.nome));
+    motivos.forEach((m) => mapa.set(m.id, m.nome));
     return mapa;
-  }, [motivosDevolucao]);
-
-  const mapaMotivosDescarte = useMemo(() => {
-    const mapa = new Map<string, string>();
-    motivosDescarte.forEach((m) => mapa.set(m.id, m.nome));
-    return mapa;
-  }, [motivosDescarte]);
+  }, [motivos]);
 
   const mapaBolsas = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -165,12 +159,8 @@ export function DevolucoesDescartesPage() {
     if (!unidadeAtivaId) return;
     api
       .get<Motivo[]>("/motivos-devolucao")
-      .then(setMotivosDevolucao)
-      .catch(() => setMotivosDevolucao([]));
-    api
-      .get<Motivo[]>("/motivos-descarte")
-      .then(setMotivosDescarte)
-      .catch(() => setMotivosDescarte([]));
+      .then(setMotivos)
+      .catch(() => setMotivos([]));
     carregarHistorico();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unidadeAtivaId]);
@@ -299,7 +289,7 @@ export function DevolucoesDescartesPage() {
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
               >
                 <option value="">Selecione...</option>
-                {motivosDevolucao.map((m) => (
+                {motivos.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.nome}
                   </option>
@@ -352,7 +342,7 @@ export function DevolucoesDescartesPage() {
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
               >
                 <option value="">Selecione...</option>
-                {motivosDescarte.map((m) => (
+                {motivos.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.nome}
                   </option>
@@ -414,7 +404,7 @@ export function DevolucoesDescartesPage() {
                 devolucoes.map((d) => (
                   <tr key={d.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
                     <td className="px-4 py-3">{mapaBolsas.get(d.unidade_hemocomponente_id) ?? "—"}</td>
-                    <td className="px-4 py-3">{mapaMotivosDevolucao.get(d.motivo_devolucao_id) ?? "—"}</td>
+                    <td className="px-4 py-3">{mapaMotivos.get(d.motivo_devolucao_id) ?? "—"}</td>
                     <td className="px-4 py-3">{formatarDataHora(d.data_devolucao)}</td>
                   </tr>
                 ))
@@ -456,7 +446,7 @@ export function DevolucoesDescartesPage() {
                 descartes.map((d) => (
                   <tr key={d.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
                     <td className="px-4 py-3">{mapaBolsas.get(d.unidade_hemocomponente_id) ?? "—"}</td>
-                    <td className="px-4 py-3">{mapaMotivosDescarte.get(d.motivo_descarte_id) ?? "—"}</td>
+                    <td className="px-4 py-3">{mapaMotivos.get(d.motivo_descarte_id) ?? "—"}</td>
                     <td className="px-4 py-3">{formatarDataHora(d.data_descarte)}</td>
                   </tr>
                 ))

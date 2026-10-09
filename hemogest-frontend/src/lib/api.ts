@@ -1,9 +1,17 @@
 /**
  * HemoGest — cliente HTTP central.
- * Guarda tokens em memória (não em localStorage — evita XSS roubando o
- * token; o preço é perder a sessão ao recarregar a página, aceitável para
- * este estágio do projeto). Renova o access token automaticamente em um
- * 401, repetindo a requisição original uma única vez.
+ * Tokens ficam em memória e espelhados em localStorage, sem validade própria
+ * no cliente (2026-10-02, pedido do cliente: "quero que consiga ficar aberto
+ * o plantão todo, sem deslogar" — uma janela própria de ~4h, tentada antes,
+ * ficava mais curta que a validade real do access token (8h), porque só era
+ * renovada quando um 401 forçava um refresh de verdade; sem uso intenso
+ * nesse meio tempo, a sessão "expirava" sozinha no navegador mesmo com o
+ * token ainda totalmente válido no servidor). Quem baliza a sessão agora é
+ * só o próprio par de tokens: access token (expira sozinho, renovado na
+ * hora via refresh) e refresh token (ACCESS_TOKEN_EXPIRE_MINUTES /
+ * REFRESH_TOKEN_EXPIRE_DAYS no backend) — localStorage só sobrevive ao
+ * fechar a aba/navegador, igual antes. Renova o access token automaticamente
+ * em um 401, repetindo a requisição original uma única vez.
  */
 // Em produção (build), VITE_API_BASE_URL pode apontar pra URL absoluta do
 // backend (ex: https://hemogest-backend.fly.dev/api/v1) — necessário se
@@ -18,20 +26,46 @@ interface TokenState {
   unidadeHospitalarId: string | null; // usado só pelo Admin Global (header X-Unidade-Id)
 }
 
+const CHAVE_SESSION_STORAGE = "hemogest.tokens";
+
+function lerTokensPersistidos(): { accessToken: string; refreshToken: string } | null {
+  try {
+    const bruto = localStorage.getItem(CHAVE_SESSION_STORAGE);
+    if (!bruto) return null;
+    const dados = JSON.parse(bruto);
+    if (typeof dados.accessToken === "string" && typeof dados.refreshToken === "string") return dados;
+    return null;
+  } catch {
+    return null; // modo privado/localStorage bloqueado — cai pro comportamento sem persistência
+  }
+}
+
+const tokensPersistidos = lerTokensPersistidos();
+
 const state: TokenState = {
-  accessToken: null,
-  refreshToken: null,
+  accessToken: tokensPersistidos?.accessToken ?? null,
+  refreshToken: tokensPersistidos?.refreshToken ?? null,
   unidadeHospitalarId: null,
 };
 
 export function setTokens(accessToken: string, refreshToken: string) {
   state.accessToken = accessToken;
   state.refreshToken = refreshToken;
+  try {
+    localStorage.setItem(CHAVE_SESSION_STORAGE, JSON.stringify({ accessToken, refreshToken }));
+  } catch {
+    /* modo privado/localStorage bloqueado — sessão só dura em memória, sem quebrar o login */
+  }
 }
 
 export function clearTokens() {
   state.accessToken = null;
   state.refreshToken = null;
+  try {
+    localStorage.removeItem(CHAVE_SESSION_STORAGE);
+  } catch {
+    /* idem acima */
+  }
 }
 
 export function setUnidadeAtiva(unidadeId: string | null) {
@@ -100,6 +134,8 @@ export const api = {
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 

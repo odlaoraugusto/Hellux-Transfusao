@@ -37,16 +37,14 @@ class Hemocomponente(Base, BaseEntity, TenantMixin, _ParametrizacaoItemMixin):
 
 
 class MotivoDevolucao(Base, BaseEntity, TenantMixin, _ParametrizacaoItemMixin):
+    """Motivos de devolução E descarte (2026-10-05, pedido do cliente:
+    "coloca os parâmetros de devolução e descarte juntos" — a tabela
+    motivo_descarte foi removida; Descarte.motivo_descarte_id aponta pra
+    cá agora, nos mesmos motivos cadastrados aqui)."""
+
     __tablename__ = "motivo_devolucao"
     __table_args__ = (
         UniqueConstraint("unidade_hospitalar_id", "nome", name="uq_motivo_devolucao_unidade_nome"),
-    )
-
-
-class MotivoDescarte(Base, BaseEntity, TenantMixin, _ParametrizacaoItemMixin):
-    __tablename__ = "motivo_descarte"
-    __table_args__ = (
-        UniqueConstraint("unidade_hospitalar_id", "nome", name="uq_motivo_descarte_unidade_nome"),
     )
 
 

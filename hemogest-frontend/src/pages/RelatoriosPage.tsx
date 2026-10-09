@@ -15,7 +15,6 @@ interface TipoRelatorio {
 
 const TIPOS_RELATORIO: TipoRelatorio[] = [
   { chave: "pacientes", rotulo: "Pacientes", temFiltroData: false },
-  { chave: "internacoes", rotulo: "Internações", temFiltroData: true },
   { chave: "hemocomponentes", rotulo: "Hemocomponentes", temFiltroData: false },
   { chave: "transfusoes", rotulo: "Transfusões", temFiltroData: true },
   { chave: "reacoes", rotulo: "Reações", temFiltroData: true },
@@ -113,7 +112,11 @@ export function RelatoriosPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Relatórios</h1>
+        <div className="flex items-center gap-3">
+          <img src="/brand/logo-hospital-joaquim-sampaio.png" alt="Hospital Materno-Infantil Dr. Joaquim Sampaio" className="h-8 w-auto rounded bg-white/90 px-1.5 py-1" />
+          <h1 className="text-2xl font-semibold">Relatórios</h1>
+          <img src="/brand/logo-fesf-sus.png" alt="FESF-SUS" className="h-7 w-auto rounded bg-white/90 px-1.5 py-1" />
+        </div>
         <Button onClick={exportarCsv} disabled={linhas.length === 0} className="flex items-center gap-2">
           <Download size={16} />
           Exportar CSV

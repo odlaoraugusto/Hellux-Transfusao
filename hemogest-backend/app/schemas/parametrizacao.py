@@ -1,8 +1,9 @@
 """
 HemoGest — Schemas do bloco Parametrização.
-As 5 entidades (Hemocomponente, MotivoDevolucao, MotivoDescarte, TipoReacao,
-Gravidade) compartilham a mesma forma base; cada uma estende com seus
-campos específicos.
+As 4 entidades (Hemocomponente, MotivoDevolucao — motivos de devolução E
+descarte, 2026-10-05, pedido do cliente —, TipoReacao, Gravidade)
+compartilham a mesma forma base; cada uma estende com seus campos
+específicos.
 """
 import uuid
 
@@ -31,11 +32,9 @@ class ParametrizacaoItemOut(ParametrizacaoItemBase):
     ativo: bool
 
 
-# --- Motivos de Devolução / Descarte / Tipo de Reação: usam a forma base ---
+# --- Motivos de Devolução/Descarte / Tipo de Reação: usam a forma base ---
 MotivoDevolucaoCreate = ParametrizacaoItemBase
 MotivoDevolucaoOut = ParametrizacaoItemOut
-MotivoDescarteCreate = ParametrizacaoItemBase
-MotivoDescarteOut = ParametrizacaoItemOut
 TipoReacaoCreate = ParametrizacaoItemBase
 TipoReacaoOut = ParametrizacaoItemOut
 

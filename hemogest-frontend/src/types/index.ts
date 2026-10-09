@@ -1,8 +1,9 @@
 export interface Usuario {
   id: string;
   nome: string;
-  email: string;
+  login: string;
   role_id: string;
+  role_codigo: "ADMIN_GLOBAL" | "SUPERVISOR" | "BIOMEDICO" | "TECNICO" | "RT" | null;
   unidade_hospitalar_id: string | null;
   ativo: boolean;
   primeiro_acesso: boolean;
@@ -18,6 +19,7 @@ export interface UnidadeHospitalar {
   endereco: string | null;
   cidade: string | null;
   uf: string | null;
+  telefone: string | null;
   logo_object_name: string | null;
   ativo: boolean;
 }
@@ -72,15 +74,19 @@ export interface FormularioEstabelecimento {
   endereco: string | null;
   cidade: string | null;
   uf: string | null;
+  telefone: string | null;
 }
 
+/** Os 4 hemocomponentes fixos do documento oficial (STH Rev.5) — não um
+ * catálogo configurável. */
+export type TipoHemocomponente = "CH" | "PF" | "CP" | "CR";
+export type Modificacao = "ALI" | "FIL" | "IRR" | "LAV";
+
 export interface FormularioItem {
-  hemocomponente_id: string | null;
-  hemocomponente_nome: string;
-  hemocomponente_sigla: string | null;
+  tipo: TipoHemocomponente;
   quantidade: number;
   unidade_medida: "UNIDADE" | "ML";
-  modificacoes: string[];
+  modificacoes: Modificacao[];
 }
 
 export interface FormularioSolicitacao {
@@ -92,18 +98,29 @@ export interface FormularioSolicitacao {
   data_solicitacao: string;
   hora_solicitacao: string;
   nome_paciente: string;
-  prontuario: string;
+  cpf: string | null;
+  cpf_e_da_mae: boolean;
+  cns: string | null;
+  nome_social: string | null;
+  prontuario: string | null;
   sexo: "M" | "F";
   data_nascimento: string;
   nome_mae: string;
-  raca_cor: string;
+  raca_cor: string | null;
   setor_nome: string;
-  leito: string;
-  peso_kg: number;
+  leito: string | null;
+  peso_kg: number | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  codigo_ibge: string | null;
   diagnostico: string;
   hb: string;
   ht: string;
-  plaquetas: string;
+  plaquetas: string | null;
   tp: string | null;
   ttpa: string | null;
   indicacao: "USO" | "RESERVA";
@@ -113,11 +130,9 @@ export interface FormularioSolicitacao {
   reacao_previa_descricao: string | null;
   itens: FormularioItem[];
   modalidade: "EMERGENCIA" | "URGENCIA" | "ROTINA" | "PROGRAMADA";
+  data_programada: string | null;
+  hora_programada: string | null;
   observacoes: string | null;
-  termo_heterogrupo_medico: string | null;
-  termo_heterogrupo_crm: string | null;
-  termo_emergencia_medico: string | null;
-  termo_emergencia_crm: string | null;
   medico_nome: string;
   medico_crm: string;
 }
@@ -130,7 +145,7 @@ export interface FormularioResumo {
   hora_solicitacao: string;
   nome_paciente: string;
   setor_nome: string;
-  leito: string;
+  leito: string | null;
   modalidade: FormularioSolicitacao["modalidade"];
   medico_nome: string;
   hemocomponentes: string[];

@@ -3,15 +3,14 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.role import RoleCodigo
 from app.schemas.paciente import PacienteCreate, PacienteOut, PacienteUpdate
 from app.services import paciente_service
 
 router = APIRouter(prefix="/pacientes", tags=["Pacientes"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("pacientes_gerenciar")
 
 
 @router.get("", response_model=list[PacienteOut])

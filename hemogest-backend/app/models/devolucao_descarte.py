@@ -35,8 +35,11 @@ class Descarte(Base, BaseEntity, TenantMixin):
     unidade_hemocomponente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("unidade_hemocomponente.id"), nullable=False, index=True
     )
+    # Aponta pra motivo_devolucao (2026-10-05, pedido do cliente: "os
+    # motivos cadastrados passam a valer para ambos") — mesma lista de
+    # motivos usada na devolução.
     motivo_descarte_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("motivo_descarte.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("motivo_devolucao.id"), nullable=False
     )
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_descarte: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

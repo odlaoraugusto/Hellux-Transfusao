@@ -21,6 +21,7 @@ class UnidadeHospitalar(Base, BaseEntity):
     endereco: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cidade: Mapped[str | None] = mapped_column(String(120), nullable=True)
     uf: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    telefone: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     logo_object_name: Mapped[str | None] = mapped_column(
         String(255), nullable=True, comment="Referência ao objeto no MinIO"

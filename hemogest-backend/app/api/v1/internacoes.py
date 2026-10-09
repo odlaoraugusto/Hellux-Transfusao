@@ -3,10 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.role import RoleCodigo
 from app.schemas.internacao import (
     InternacaoAltaRequest,
     InternacaoCreate,
@@ -17,7 +16,7 @@ from app.schemas.internacao import (
 from app.services import internacao_service
 
 router = APIRouter(prefix="/internacoes", tags=["Internações"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("internacoes_gerenciar")
 
 
 @router.get("/paciente/{paciente_id}", response_model=list[InternacaoOut])

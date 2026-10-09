@@ -4,10 +4,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.role import RoleCodigo
 from app.schemas.unidade_hemocomponente import (
     FracionarRequest,
     ReservarRequest,
@@ -17,7 +16,7 @@ from app.schemas.unidade_hemocomponente import (
 from app.services import unidade_hemocomponente_service as svc
 
 router = APIRouter(prefix="/hemocomponentes-bolsas", tags=["Hemocomponentes (Bolsas)"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("hemocomponentes_bolsas_gerenciar")
 
 
 @router.get("", response_model=list[UnidadeHemocomponenteOut])

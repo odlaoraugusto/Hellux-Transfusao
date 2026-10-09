@@ -9,15 +9,14 @@ from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.devolucao_descarte import Descarte, Devolucao  # noqa: F401
 from app.models.formulario_solicitacao import FormularioSolicitacao  # noqa: F401
 from app.models.internacao import Internacao, InternacaoSetorHistorico  # noqa: F401
+from app.models.medico import Medico  # noqa: F401
 from app.models.paciente import Paciente  # noqa: F401
 from app.models.parametrizacao import (  # noqa: F401
     Gravidade,
     Hemocomponente,
-    MotivoDescarte,
     MotivoDevolucao,
     TipoReacao,
 )
-from app.models.password_reset_token import PasswordResetToken  # noqa: F401
 from app.models.reacao_transfusional import ReacaoTransfusional  # noqa: F401
 from app.models.refresh_token import RefreshToken  # noqa: F401
 from app.models.role import Role  # noqa: F401
@@ -38,10 +37,9 @@ __all__ = [
     "Hemocomponente",
     "Internacao",
     "InternacaoSetorHistorico",
-    "MotivoDescarte",
+    "Medico",
     "MotivoDevolucao",
     "Paciente",
-    "PasswordResetToken",
     "ReacaoTransfusional",
     "RefreshToken",
     "Role",

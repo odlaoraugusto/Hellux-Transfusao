@@ -4,22 +4,28 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
-from app.models.role import RoleCodigo
-from app.schemas.solicitacao_transfusional import SolicitacaoCreate, SolicitacaoEntregaRequest, SolicitacaoOut
+from app.schemas.solicitacao_transfusional import (
+    CancelarSolicitacaoRequest,
+    EntregarBolsaRequest,
+    RegistrarBolsaRequest,
+    RegistroBolsaOut,
+    SolicitacaoCreate,
+    SolicitacaoOut,
+)
 from app.services import solicitacao_transfusional_service as svc
 
 router = APIRouter(prefix="/solicitacoes", tags=["Solicitações Transfusionais"])
-_pode_escrever = require_roles(RoleCodigo.BIOMEDICO, RoleCodigo.TECNICO, RoleCodigo.SUPERVISOR)
+_pode_escrever = require_permission("solicitacoes_gerenciar")
 
 
 @router.get("", response_model=list[SolicitacaoOut])
 def listar(
     de: datetime | None = Query(default=None, description="Início do período (inclusive), com fuso"),
     ate: datetime | None = Query(default=None, description="Fim do período (exclusivo), com fuso"),
-    status_filtro: str | None = Query(default=None, alias="status", pattern="^(SOLICITADO|EM_PROCESSAMENTO|ENTREGUE)$"),
+    status_filtro: str | None = Query(default=None, alias="status", pattern="^(SOLICITADO|EM_PROCESSAMENTO|ENTREGUE|CANCELADO)$"),
     setor_id: uuid.UUID | None = None,
     hemocomponente_id: uuid.UUID | None = None,
     db: Session = Depends(get_db),
@@ -60,13 +66,42 @@ def iniciar_processamento(
     return svc.montar_saida(db, [item])[0]
 
 
-@router.post("/{solicitacao_id}/entregar", response_model=SolicitacaoOut)
-def entregar(
+@router.post("/{solicitacao_id}/cancelar", response_model=SolicitacaoOut)
+def cancelar(
     solicitacao_id: uuid.UUID,
-    payload: SolicitacaoEntregaRequest,
+    payload: CancelarSolicitacaoRequest,
     db: Session = Depends(get_db),
     ctx: TenantContext = Depends(require_unidade_resolvida),
     user=Depends(_pode_escrever),
 ):
-    item = svc.entregar(db, solicitacao_id, payload, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id)
-    return svc.montar_saida(db, [item], com_bolsas=True)[0]
+    item = svc.cancelar(db, solicitacao_id, payload, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id)
+    return svc.montar_saida(db, [item])[0]
+
+
+@router.post("/{solicitacao_id}/bolsas", response_model=RegistroBolsaOut)
+def registrar_bolsa(
+    solicitacao_id: uuid.UUID,
+    payload: RegistrarBolsaRequest,
+    db: Session = Depends(get_db),
+    ctx: TenantContext = Depends(require_unidade_resolvida),
+    user=Depends(_pode_escrever),
+):
+    item, bolsa = svc.registrar_bolsa(db, solicitacao_id, payload, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id)
+    saida = svc.montar_saida(db, [item], com_bolsas=True)[0]
+    return {**saida, "bolsa_id": bolsa.id}
+
+
+@router.post("/{solicitacao_id}/bolsas/{bolsa_id}/entregar", response_model=RegistroBolsaOut)
+def entregar_bolsa(
+    solicitacao_id: uuid.UUID,
+    bolsa_id: uuid.UUID,
+    payload: EntregarBolsaRequest,
+    db: Session = Depends(get_db),
+    ctx: TenantContext = Depends(require_unidade_resolvida),
+    user=Depends(_pode_escrever),
+):
+    item, bolsa = svc.entregar_bolsa(
+        db, solicitacao_id, bolsa_id, payload, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id
+    )
+    saida = svc.montar_saida(db, [item], com_bolsas=True)[0]
+    return {**saida, "bolsa_id": bolsa.id}

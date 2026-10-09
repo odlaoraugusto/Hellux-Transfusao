@@ -4,6 +4,11 @@ unidade_hospitalar_id é opcional aqui (diferente do TenantMixin padrão)
 porque o Administrador Global não pertence a uma única unidade — ele opera
 sobre múltiplas. Os demais perfis (Supervisor, Biomédico, Técnico) sempre
 têm uma unidade vinculada; essa regra é reforçada em app.core.tenant.
+
+`login` é um nome de usuário simples, não um e-mail (2026-09-30, pedido do
+cliente — mesmo padrão dos sistemas irmãos Almoxarifado/Farmácia). Quem
+cria ou reseta a conta define a senha na hora (`app.services.user_service`)
+e repassa por fora; não existe fluxo de e-mail.
 """
 import uuid
 
@@ -21,7 +26,7 @@ class Usuario(Base, BaseEntity):
     __tablename__ = "usuario"
 
     nome: Mapped[str] = mapped_column(String(150), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    login: Mapped[str] = mapped_column(String(60), unique=True, nullable=False, index=True)
     senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 
     role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("role.id"), nullable=False)
@@ -42,5 +47,11 @@ class Usuario(Base, BaseEntity):
 
         return self.role is not None and self.role.codigo == RoleCodigo.ADMIN_GLOBAL
 
+    @property
+    def role_codigo(self) -> str | None:
+        """Exposto em UsuarioOut pra o frontend decidir o que mostrar (ex.:
+        tela Permissões) sem precisar de uma segunda chamada pra /roles."""
+        return self.role.codigo if self.role is not None else None
+
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<Usuario {self.email}>"
+        return f"<Usuario {self.login}>"

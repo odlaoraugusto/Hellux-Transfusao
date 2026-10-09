@@ -10,12 +10,42 @@
   color-scheme: dark;
 }
 
+/* Cobertura geral do modo escuro (2026-09-30, pedido do cliente: "só deixa
+ * algumas partes escuras" — a maioria das telas usa esses tokens direto
+ * (bg-surface-*, text-ink*, border-neutral-*, bg-neutral-*, bg-white) sem
+ * variante dark: própria; em vez de editar tela por tela, sobrescreve aqui
+ * pra valer no app inteiro de uma vez. Seletor de duas classes já vence o
+ * utilitário Tailwind de uma classe só, sem precisar de !important. */
 .dark body {
   @apply bg-neutral-900 text-neutral-100;
 }
 
+.dark .bg-surface-bg {
+  @apply bg-neutral-900;
+}
+
 .dark .bg-surface-card {
   @apply bg-neutral-800;
+}
+
+.dark .bg-white {
+  @apply bg-neutral-800;
+}
+
+.dark .bg-neutral-50 {
+  @apply bg-neutral-800;
+}
+
+.dark .bg-neutral-100 {
+  @apply bg-neutral-700;
+}
+
+.dark .hover\:bg-neutral-100:hover {
+  @apply bg-neutral-700;
+}
+
+.dark .hover\:bg-neutral-50:hover {
+  @apply bg-neutral-700;
 }
 
 .dark .text-ink {
@@ -28,6 +58,105 @@
 
 .dark .border-neutral-200 {
   @apply border-neutral-700;
+}
+
+.dark .border-neutral-300 {
+  @apply border-neutral-600;
+}
+
+/* Cores de status (sucesso/alerta/perigo/hemo) no modo escuro (2026-10-07,
+ * pedido do cliente: "as tonalidades ficaram feias"): os tokens em
+ * tailwind.config.js (success/warning/danger/hemo-dark) foram calibrados
+ * pra texto em cima de fundo BRANCO — direto no modo escuro, viravam uma
+ * mancha escura sobre fundo escuro, quase ilegível (badges "Finalizado"
+ * etc. apareciam como uma mancha verde-suja). Mesma estratégia do bloco
+ * acima: sobrescreve a classe crua uma vez só, sem precisar de variante
+ * dark: espalhada pelas telas — texto fica numa versão clara/vibrante da
+ * mesma cor, e o fundo translúcido ganha um pouco mais de opacidade pra
+ * continuar parecendo um "badge" (não só uma mancha quase invisível). */
+.dark .text-success {
+  @apply text-green-400;
+}
+
+.dark .text-warning {
+  @apply text-amber-400;
+}
+
+.dark .text-danger {
+  @apply text-red-400;
+}
+
+.dark .text-hemo,
+.dark .text-hemo-dark {
+  @apply text-hemo-light;
+}
+
+.dark .border-danger {
+  @apply border-red-400;
+}
+
+.dark .bg-success\/10 {
+  @apply bg-green-400/20;
+}
+
+.dark .bg-success\/5 {
+  @apply bg-green-400/15;
+}
+
+.dark .bg-warning\/10 {
+  @apply bg-amber-400/20;
+}
+
+.dark .bg-warning\/15 {
+  @apply bg-amber-400/20;
+}
+
+.dark .bg-warning\/20 {
+  @apply bg-amber-400/25;
+}
+
+.dark .bg-danger\/10 {
+  @apply bg-red-400/20;
+}
+
+.dark .bg-danger\/5 {
+  @apply bg-red-400/15;
+}
+
+/* valor direto (em vez de @apply bg-hemo-light/NN) — encadear @apply entre
+ * utilitários da mesma família hemo-light dá "circular dependency" no
+ * Tailwind, porque bg-hemo-light/20 também tem sua própria sobrescrita
+ * dark: abaixo. */
+.dark .bg-hemo\/10 {
+  background-color: rgb(111 166 157 / 0.2); /* hemo-light a 20% */
+}
+
+.dark .bg-hemo\/5 {
+  background-color: rgb(111 166 157 / 0.15);
+}
+
+.dark .bg-hemo-light\/20 {
+  background-color: rgb(111 166 157 / 0.25);
+}
+
+/* Mesmo problema, mas com as cores "cruas" da paleta do Tailwind (não os
+ * tokens semânticos acima) — usadas em alguns contadores/selos (ex.:
+ * SolicitacoesPage). bg-amber-100/bg-blue-100 são quase brancos: viram um
+ * retângulo claro destacando feio sobre o fundo escuro. */
+.dark .bg-amber-100 {
+  @apply bg-amber-400/20;
+}
+
+.dark .text-amber-800 {
+  @apply text-amber-300;
+}
+
+.dark .bg-blue-100 {
+  @apply bg-blue-400/20;
+}
+
+.dark .text-blue-800 {
+  @apply text-blue-300;
 }
 
 /* Impressão do formulário de solicitação: A4 retrato, fundo branco e cores mantidas
