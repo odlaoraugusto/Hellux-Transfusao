@@ -10,18 +10,20 @@
  */
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { FormularioEstabelecimento, FormularioSolicitacao, Modificacao, TipoHemocomponente } from "@/types";
+import { INSTITUICAO_PRIMARIA, INSTITUICAO_SECUNDARIA } from "@/config/instituicao";
 
 const TEMPLATE_URL = "/formularios/sth-rev5-template.pdf";
 const COR_TEXTO: [number, number, number] = [0, 0, 0];
 
 // Logos na caixa do título "SOLICITAÇÃO DE TRANSFUSÃO DE HEMOCOMPONENTES",
 // uma de cada lado do texto (2026-10-06, pedido do cliente) — mesmas logos
-// já usadas em outras telas do sistema (ver RelatoriosPage.tsx). A caixa do
-// título mede x=150.5..497.38, y=14.64..56.52 (medido direto no PDF); o
-// texto em si ocupa x=219.29..431.76, então sobra ~69pt à esquerda e ~66pt
-// à direita pra encaixar as logos sem encostar nem no texto nem na borda.
-const LOGO_URL_HMIJS = "/brand/logo-hospital-joaquim-sampaio.png";
-const LOGO_URL_FESF = "/brand/logo-fesf-sus.png";
+// já usadas em outras telas do sistema (ver RelatoriosPage.tsx), configuráveis
+// por instituição (ver src/config/instituicao.ts) em vez de fixas. Precisam
+// ser PNG — pdf-lib não embute SVG. Sem logo configurada para um dos lados,
+// esse lado simplesmente não é desenhado. A caixa do título mede
+// x=150.5..497.38, y=14.64..56.52 (medido direto no PDF); o texto em si
+// ocupa x=219.29..431.76, então sobra ~69pt à esquerda e ~66pt à direita
+// pra encaixar as logos sem encostar nem no texto nem na borda.
 const LOGOS_TITULO = {
   // {x, bTop, w, h}: x e bTop (topo) a partir do canto superior esquerdo da
   // página, igual à convenção de TX abaixo — só que aqui bTop é o topo da
@@ -151,11 +153,13 @@ export async function gerarPdfSolicitacao(dados: FormularioSolicitacao): Promise
   const H = page.getHeight();
   const col = rgb(...COR_TEXTO);
 
-  const [imgHmijs, imgFesf] = await Promise.all([
-    pdf.embedPng(await carregarLogo(LOGO_URL_HMIJS)),
-    pdf.embedPng(await carregarLogo(LOGO_URL_FESF)),
-  ]);
-  for (const [img, pos] of [[imgHmijs, LOGOS_TITULO.hmijs], [imgFesf, LOGOS_TITULO.fesf]] as const) {
+  const logosConfiguradas = [
+    [INSTITUICAO_PRIMARIA.logoUrl, LOGOS_TITULO.hmijs] as const,
+    [INSTITUICAO_SECUNDARIA?.logoUrl ?? null, LOGOS_TITULO.fesf] as const,
+  ].filter(([url]) => url != null) as [string, typeof LOGOS_TITULO.hmijs][];
+
+  for (const [url, pos] of logosConfiguradas) {
+    const img = await pdf.embedPng(await carregarLogo(url));
     page.drawImage(img, { x: pos.x, y: H - pos.bTop - pos.h, width: pos.w, height: pos.h });
   }
 

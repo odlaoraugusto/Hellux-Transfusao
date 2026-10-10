@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
+import { INSTITUICAO_PRIMARIA, INSTITUICAO_SECUNDARIA } from "@/config/instituicao";
+import { LogoInstituicao } from "@/components/LogoInstituicao";
 
 /**
  * Folha de Hemotransfusão (2026-10-01, pedido do cliente: modelo oficial
@@ -175,13 +177,13 @@ export function FolhaHemotransfusaoPage() {
              * título de verdade, mesmo as duas logos tendo larguras
              * diferentes (2026-10-01, pedido do cliente: alinhamento do
              * cabeçalho). */}
-            <img
-              src="/brand/logo-hospital-joaquim-sampaio.png"
-              alt="Hospital Materno-Infantil Dr. Joaquim Sampaio"
-              className="h-9 w-auto shrink-0 justify-self-start"
-            />
+            <LogoInstituicao instituicao={INSTITUICAO_PRIMARIA} className="h-9 w-auto shrink-0 justify-self-start" />
             <h1 className="whitespace-nowrap text-center text-base font-bold text-neutral-900">FOLHA DE HEMOTRANSFUSÃO</h1>
-            <img src="/brand/logo-fesf-sus.png" alt="FESF-SUS" className="h-9 w-auto shrink-0 justify-self-end" />
+            {INSTITUICAO_SECUNDARIA ? (
+              <LogoInstituicao instituicao={INSTITUICAO_SECUNDARIA} className="h-9 w-auto shrink-0 justify-self-end" />
+            ) : (
+              <span />
+            )}
           </div>
 
           <Secao titulo="Identificação">

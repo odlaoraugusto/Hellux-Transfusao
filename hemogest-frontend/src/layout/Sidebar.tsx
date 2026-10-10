@@ -17,6 +17,8 @@ import { NavLink } from "react-router-dom";
 import clsx from "clsx";
 import { useAuth } from "@/hooks/useAuth";
 import { podeGerenciarPermissoes, rotaPermitidaParaRole } from "@/lib/permissoes";
+import { INSTITUICAO_PRIMARIA, INSTITUICAO_SECUNDARIA } from "@/config/instituicao";
+import { LogoInstituicao } from "@/components/LogoInstituicao";
 
 // "Formulários recebidos" saiu do menu (2026-09-30, pedido do cliente) — o
 // formulário público já cria a Solicitação automaticamente, então a fila de
@@ -81,11 +83,13 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Identidade institucional desta unidade (2026-09-30, pedido do
-       * cliente) — fixa, não é um logo configurável por tenant. */}
+      {/* Identidade institucional desta unidade — configurável por ambiente,
+       * ver src/config/instituicao.ts (2026-09-30, pedido do cliente). */}
       <div className="flex items-center justify-center gap-2 border-t border-neutral-200 px-4 py-3">
-        <img src="/brand/logo-hospital-joaquim-sampaio.png" alt="Hospital Materno-Infantil Dr. Joaquim Sampaio" className="h-7 w-auto rounded bg-white/90 px-1.5 py-1" />
-        <img src="/brand/logo-fesf-sus.png" alt="FESF-SUS" className="h-6 w-auto rounded bg-white/90 px-1.5 py-1" />
+        <LogoInstituicao instituicao={INSTITUICAO_PRIMARIA} className="h-7 w-auto rounded bg-white/90 px-1.5 py-1" />
+        {INSTITUICAO_SECUNDARIA && (
+          <LogoInstituicao instituicao={INSTITUICAO_SECUNDARIA} className="h-6 w-auto rounded bg-white/90 px-1.5 py-1" />
+        )}
       </div>
     </aside>
   );

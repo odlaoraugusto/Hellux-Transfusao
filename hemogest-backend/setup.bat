@@ -27,20 +27,29 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [3/4] Criando as tabelas do banco (SQLite local: hemogest.db)...
-call .venv\Scripts\python -m alembic upgrade head
+echo [3/4] Criando o arquivo .env (SQLite local + chaves geradas na hora)...
+call .venv\Scripts\python scripts\criar_env_local.py
 if errorlevel 1 (
-    echo ERRO ao rodar as migrations. Veja a mensagem acima.
+    echo ERRO ao criar o .env local. Veja a mensagem acima.
     pause
     exit /b 1
 )
 
-echo [4/4] Criando o primeiro usuario Administrador Global...
-call .venv\Scripts\python scripts\seed_admin.py
+echo [4/4] Criando as tabelas do banco (SQLite local: hemogest.db) e o primeiro usuario Administrador Global...
+REM --create-tables usa Base.metadata.create_all em vez de "alembic upgrade
+REM head": algumas migrations usam ALTER COLUMN direto (correto para
+REM Postgres), que o SQLite nao suporta fora do modo batch do Alembic —
+REM alembic so roda no setup via Docker/Postgres (RUNBOOK.md), nunca aqui.
+call .venv\Scripts\python scripts\seed_admin.py --create-tables
+if errorlevel 1 (
+    echo ERRO ao criar as tabelas/usuario administrador. Veja a mensagem acima.
+    pause
+    exit /b 1
+)
 
 echo.
 echo Setup concluido!
-echo Login:  admin@hemogest.internal
+echo Login:  admin
 echo Senha:  TrocarSenha123!
 echo (troque a senha apos o primeiro login)
 echo.

@@ -4,6 +4,8 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { INSTITUICAO_PRIMARIA, INSTITUICAO_SECUNDARIA } from "@/config/instituicao";
+import { LogoInstituicao } from "@/components/LogoInstituicao";
 
 type LinhaRelatorio = Record<string, unknown>;
 
@@ -113,9 +115,11 @@ export function RelatoriosPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="/brand/logo-hospital-joaquim-sampaio.png" alt="Hospital Materno-Infantil Dr. Joaquim Sampaio" className="h-8 w-auto rounded bg-white/90 px-1.5 py-1" />
+          <LogoInstituicao instituicao={INSTITUICAO_PRIMARIA} className="h-8 w-auto rounded bg-white/90 px-1.5 py-1" />
           <h1 className="text-2xl font-semibold">Relatórios</h1>
-          <img src="/brand/logo-fesf-sus.png" alt="FESF-SUS" className="h-7 w-auto rounded bg-white/90 px-1.5 py-1" />
+          {INSTITUICAO_SECUNDARIA && (
+            <LogoInstituicao instituicao={INSTITUICAO_SECUNDARIA} className="h-7 w-auto rounded bg-white/90 px-1.5 py-1" />
+          )}
         </div>
         <Button onClick={exportarCsv} disabled={linhas.length === 0} className="flex items-center gap-2">
           <Download size={16} />

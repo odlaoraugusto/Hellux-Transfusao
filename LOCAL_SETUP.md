@@ -44,9 +44,9 @@ Dentro da pasta do projeto:
 
 1. Dê dois cliques em `hemogest-backend\setup.bat`.
    Isso cria o ambiente Python (`.venv`), instala as dependências, cria o
-   banco SQLite (`hemogest.db`) e já deixa um usuário Administrador Global
-   pronto:
-   - login: `admin@hemogest.internal`
+   `.env` local (SQLite + chaves de segurança geradas na hora), cria o
+   banco (`hemogest.db`) e já deixa um usuário Administrador Global pronto:
+   - login: `admin`
    - senha: `TrocarSenha123!`
 2. Dê dois cliques em `hemogest-frontend\setup.bat`.
    Isso instala as dependências da interface (`npm install`).
@@ -77,12 +77,19 @@ configurações do usuário, ou via `POST /api/v1/auth/change-password`
 
 ## 5. Voltar para Docker/Postgres/MinIO no futuro
 
-Nada foi removido — é só trocar de arquivo de configuração:
+Nada foi removido — é só trocar de arquivo de configuração (o `.env` local
+criado pelo `setup.bat` usa SQLite; para Docker/Postgres/MinIO, parta do
+modelo em `.env.example`, que já vem com `DATABASE_URL` apontando para o
+Postgres do `docker-compose.yml`):
 
 ```
-copy hemogest-backend\.env.docker hemogest-backend\.env
+copy hemogest-backend\.env.example hemogest-backend\.env
 docker compose -f hemogest-backend\docker-compose.yml up --build
 ```
+
+Edite `JWT_SECRET_KEY` e `FIELD_ENCRYPTION_KEY` no `.env` copiado antes de
+subir — os valores de `.env.example` são só placeholders (ver
+`scripts/generate_encryption_key.py`).
 
 O backend detecta automaticamente Postgres vs. SQLite pela
 `DATABASE_URL`, e MinIO vs. disco local pela variável `STORAGE_BACKEND` —

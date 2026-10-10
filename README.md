@@ -166,7 +166,9 @@ A cada versão nova, rode `alembic upgrade head` depois de subir os containers.
 
 ## Identidade visual
 
-Vermelho `#C62828` como cor principal (`#8E1B1B` para hover e estados ativos, `#E57373` para alertas leves), tipografia Poppins e cantos arredondados de 12 px. Os tokens ficam em `hemogest-frontend/tailwind.config.js` e os vetores da marca em `hemogest-frontend/public/brand/`. A interface tem tema claro e escuro.
+Vermelho `#C62828` como cor principal (`#8E1B1B` para hover e estados ativos, `#E57373` para alertas leves), tipografia Poppins e cantos arredondados de 12 px. Os tokens ficam em `hemogest-frontend/tailwind.config.js` e os vetores da marca do Hellux em `hemogest-frontend/public/brand/`. A interface tem tema claro e escuro.
+
+O nome e a logo da unidade hospitalar (e de uma eventual instituição parceira/co-mantenedora) exibidos no cabeçalho, barra lateral, relatórios, Folha de Hemotransfusão e no PDF da Solicitação de Transfusão **não são fixos no código** — cada implantação configura os próprios em `hemogest-frontend/.env` (ver `VITE_INSTITUICAO_*` em [`.env.example`](./hemogest-frontend/.env.example)). Sem configuração, a interface usa um rótulo de texto genérico.
 
 ## Documentação adicional
 
@@ -176,3 +178,20 @@ Vermelho `#C62828` como cor principal (`#8E1B1B` para hover e estados ativos, `#
 - [`hemogest-backend/RUNBOOK.md`](./hemogest-backend/RUNBOOK.md): primeira execução.
 - [`hemogest-backend/DEPLOY.md`](./hemogest-backend/DEPLOY.md): produção no Fly.io.
 - [`LOCAL_SETUP.md`](./LOCAL_SETUP.md): execução local no Windows.
+
+## Contribuindo
+
+Contribuições de outras unidades do SUS, gestores de TI e desenvolvedores são
+bem-vindas. Veja [`CONTRIBUTING.md`](./CONTRIBUTING.md) para como reportar
+problemas e enviar pull requests, e [`SECURITY.md`](./SECURITY.md) para
+reportar vulnerabilidades de segurança ou de proteção de dados (LGPD) de
+forma privada.
+
+## Licença
+
+Distribuído sob a licença [Apache 2.0](./LICENSE). O formulário de
+solicitação de transfusão é inspirado no modelo adotado pelo hemocentro de
+referência estadual e nos requisitos da Portaria de Consolidação MS nº
+5/2017; a identidade visual (nome e logos da unidade hospitalar) é
+configurável por instituição — veja a seção "Identidade institucional"
+em [`hemogest-frontend/.env.example`](./hemogest-frontend/.env.example).

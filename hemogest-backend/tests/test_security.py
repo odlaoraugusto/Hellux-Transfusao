@@ -6,8 +6,8 @@ os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost:
 
 from app.core.security import (  # noqa: E402
     create_access_token,
+    create_refresh_token,
     decode_token,
-    generate_opaque_token,
     hash_opaque_token,
     hash_password,
     verify_password,
@@ -22,7 +22,10 @@ def test_password_hash_roundtrip() -> None:
 
 
 def test_opaque_token_hash_is_deterministic() -> None:
-    token = generate_opaque_token()
+    # hash_opaque_token é usado sobre o refresh token (JWT) antes de
+    # persistir (app.services.user_service) — não existe mais um gerador de
+    # token opaco separado.
+    token = create_refresh_token("user-123")
     assert hash_opaque_token(token) == hash_opaque_token(token)
     assert hash_opaque_token(token) != token
 

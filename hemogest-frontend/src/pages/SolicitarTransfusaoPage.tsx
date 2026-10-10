@@ -6,6 +6,8 @@ import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { HEMOCOMPONENTES, MODALIDADES, NOME_MODIFICACAO, OPCOES_INDICACAO, RACAS, SETORES, calcularIdade } from "@/lib/formulario";
 import type { Modificacao, TipoHemocomponente } from "@/types";
+import { INSTITUICAO_PRIMARIA, INSTITUICAO_SECUNDARIA } from "@/config/instituicao";
+import { LogoInstituicao } from "@/components/LogoInstituicao";
 
 /**
  * Formulário público de solicitação de transfusão (sem login) — mesmo
@@ -697,9 +699,8 @@ export function SolicitarTransfusaoPage() {
     <div className="min-h-screen bg-surface-bg pb-12">
       <div className="bg-gradient-to-r from-formpub to-formpub-dark px-4 pb-16 pt-6 text-white">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-4 sm:flex-nowrap sm:justify-between">
-          <img
-            src="/brand/logo-hospital-joaquim-sampaio.png"
-            alt="Hospital Materno-Infantil Dr. Joaquim Sampaio"
+          <LogoInstituicao
+            instituicao={INSTITUICAO_PRIMARIA}
             className="h-10 w-auto shrink-0 rounded-md bg-white/95 px-2 py-1 sm:h-12"
           />
           <div className="flex items-center gap-3 text-center sm:text-left">
@@ -711,11 +712,12 @@ export function SolicitarTransfusaoPage() {
               </p>
             </div>
           </div>
-          <img
-            src="/brand/logo-fesf-sus.png"
-            alt="FESF-SUS — Fundação Estatal Saúde da Família"
-            className="h-10 w-auto shrink-0 rounded-md bg-white/95 px-2 py-1 sm:h-12"
-          />
+          {INSTITUICAO_SECUNDARIA && (
+            <LogoInstituicao
+              instituicao={INSTITUICAO_SECUNDARIA}
+              className="h-10 w-auto shrink-0 rounded-md bg-white/95 px-2 py-1 sm:h-12"
+            />
+          )}
         </div>
       </div>
 
