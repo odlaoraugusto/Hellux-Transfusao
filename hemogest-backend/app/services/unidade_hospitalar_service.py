@@ -13,7 +13,7 @@ from app.core.audit import registrar_auditoria
 from app.db.base_mixins import utcnow
 from app.models.audit_log import AcaoAuditoria
 from app.models.unidade_hospitalar import UnidadeHospitalar
-from app.schemas.unidade_hospitalar import UnidadeHospitalarCreate, UnidadeHospitalarUpdate
+from app.schemas.unidade_hospitalar import ModulosUpdate, UnidadeHospitalarCreate, UnidadeHospitalarUpdate
 from app.services.storage import get_storage_service
 
 _TIPOS_IMAGEM_ACEITOS = {"image/png", "image/jpeg", "image/svg+xml"}
@@ -63,6 +63,38 @@ def update_unidade(
     registrar_auditoria(
         db, acao=AcaoAuditoria.EDICAO, entidade="unidade_hospitalar", entidade_id=unidade.id,
         usuario_id=actor_id, unidade_hospitalar_id=unidade.id,
+    )
+    db.commit()
+    db.refresh(unidade)
+    return unidade
+
+
+def update_modulos(
+    db: Session, unidade_id: uuid.UUID, payload: ModulosUpdate, *, actor_id: uuid.UUID
+) -> UnidadeHospitalar:
+    """Liga/desliga módulos opcionais (ver MODULOS.md). Restrito a
+    Admin Global na camada de rota — aqui só a regra de dependência entre
+    módulos: solicitação ao hemocentro não existe sem estoque (não há
+    reposição de um estoque que a unidade não controla)."""
+    unidade = get_unidade(db, unidade_id)
+    dados = payload.model_dump(exclude_unset=True)
+
+    estoque_resultante = dados.get("modulo_estoque_ativo", unidade.modulo_estoque_ativo)
+    hemocentro_resultante = dados.get("modulo_solicitacao_hemocentro_ativo", unidade.modulo_solicitacao_hemocentro_ativo)
+    if hemocentro_resultante and not estoque_resultante:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Não é possível ativar a solicitação ao hemocentro sem o módulo de estoque.",
+        )
+
+    for campo, valor in dados.items():
+        setattr(unidade, campo, valor)
+    unidade.updated_by = actor_id
+    unidade.updated_at = utcnow()
+    db.flush()
+    registrar_auditoria(
+        db, acao=AcaoAuditoria.EDICAO, entidade="unidade_hospitalar_modulos", entidade_id=unidade.id,
+        usuario_id=actor_id, unidade_hospitalar_id=unidade.id, detalhes=dados,
     )
     db.commit()
     db.refresh(unidade)

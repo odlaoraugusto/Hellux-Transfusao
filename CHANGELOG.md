@@ -19,6 +19,26 @@ e o projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - `scripts/criar_env_local.py`, chamado por `setup.bat`: gera o `.env` do
   setup local sem Docker com chaves de segurança já geradas, em vez de
   exigir que a pessoa crie o arquivo à mão.
+- **Módulos configuráveis por unidade** (ver [`MODULOS.md`](./MODULOS.md)):
+  cada agência transfusional liga só as seções que usa de verdade, em vez
+  de um fluxo único — pensado para unidades que só transfundem (sem
+  estoque próprio) convivendo com unidades que recebem estoque do
+  hemocentro e fazem os próprios testes. Editável só pelo Admin Global, em
+  Unidade Hospitalar.
+  - **Estoque de bolsas** (`modulo_estoque_ativo`, ligado por padrão):
+    mesma tela de Hemocomponentes de antes, agora desligável.
+  - **Mapa de trabalho pré-transfusional** (`modulo_mapa_trabalho_ativo`,
+    ligado por padrão): ficha técnica dos testes de laboratório por bolsa
+    (confirmação de ABO/Rh, técnica da prova cruzada e da PAI, lotes de
+    reagente, validade, temperatura da amostra, dupla checagem), arquivada
+    junto com a Solicitação.
+  - **Solicitação ao hemocentro** (`modulo_solicitacao_hemocentro_ativo`,
+    desligado por padrão, exige o módulo de estoque): pedido de reposição
+    de bolsas ao hemocentro de referência, com status (solicitada →
+    enviada → recebida) — ao confirmar o recebimento, as bolsas chegadas
+    já entram no estoque com a solicitação marcada como origem.
+- **Nº macarrão** no cadastro de bolsa (`UnidadeHemocomponente.numero_macarrao`):
+  número do segmento de tubo usado em reteste de confirmação, opcional.
 
 ### Corrigido
 - Validado o setup do zero (instalação limpa), tanto via Docker Compose

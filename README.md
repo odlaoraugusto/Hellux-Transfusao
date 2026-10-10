@@ -14,7 +14,9 @@ O sistema é multitenant: cada hospital (unidade hospitalar) enxerga apenas os p
 
 **Assistencial**
 - **Pacientes e internações:** cadastro com dados identificadores criptografados, histórico de setores e alta.
-- **Hemocomponentes (bolsas):** entrada de bolsas com número, tipo sanguíneo e validade, fracionamento em bolsas satélites (A, B, C…), reserva para paciente e controle de status (disponível, reservado, transfundido, devolvido, descartado).
+- **Hemocomponentes (bolsas):** entrada de bolsas com número, nº macarrão, tipo sanguíneo e validade, fracionamento em bolsas satélites (A, B, C…), reserva para paciente e controle de status (disponível, reservado, transfundido, devolvido, descartado). Módulo opcional — ver [`MODULOS.md`](./MODULOS.md).
+- **Mapa de trabalho pré-transfusional:** ficha técnica dos testes de laboratório (ABO/Rh, prova cruzada, lotes de reagente, dupla checagem) por bolsa, arquivada com a solicitação. Módulo opcional.
+- **Solicitação ao hemocentro:** pedido de reposição de estoque ao hemocentro de referência, com acompanhamento por status até o recebimento, já integrado ao estoque. Módulo opcional.
 - **Acompanhamento transfusional:** sinais vitais nos momentos protocolares (pré, 10 minutos, 1 hora, final e extras), finalização e registro de intercorrência.
 - **Reações transfusionais:** fluxo em quatro etapas (aberta, investigação, NOTIVISA, encerrada).
 - **Devoluções e descartes:** com motivos parametrizados e atualização automática do status da bolsa.
@@ -178,6 +180,9 @@ O nome e a logo da unidade hospitalar (e de uma eventual instituição parceira/
 - [`hemogest-backend/RUNBOOK.md`](./hemogest-backend/RUNBOOK.md): primeira execução.
 - [`hemogest-backend/DEPLOY.md`](./hemogest-backend/DEPLOY.md): produção no Fly.io.
 - [`LOCAL_SETUP.md`](./LOCAL_SETUP.md): execução local no Windows.
+- [`MODULOS.md`](./MODULOS.md): módulos opcionais (estoque, mapa de trabalho
+  pré-transfusional, solicitação ao hemocentro) — cada unidade liga só o
+  que usa, conforme seu fluxo real.
 
 ## Contribuindo
 

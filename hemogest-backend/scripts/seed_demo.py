@@ -23,7 +23,12 @@ Cria uma unidade hospitalar fictícia ("Hospital Demonstração Hellux") com:
   - um acompanhamento transfusional já FINALIZADO com sinais vitais nos
     quatro momentos protocolares — o histórico de transfusão — e uma reação
     transfusional ENCERRADA associada a ele (hemovigilância);
-  - uma devolução e um descarte de bolsa, com motivo registrado.
+  - uma devolução e um descarte de bolsa, com motivo registrado;
+  - mapa de trabalho pré-transfusional completo na bolsa já transfundida,
+    e nº macarrão em algumas bolsas (módulos opcionais, ligados nesta
+    unidade demo — ver MODULOS.md);
+  - 3 solicitações ao hemocentro de referência, uma em cada estágio
+    (solicitada, enviada, recebida — a recebida já integrada ao estoque).
 
 ATENÇÃO — tudo abaixo é inteiramente fictício: nomes, CPF, CNS, números de
 prontuário e CRM não correspondem a nenhuma pessoa real. Nunca rode este
@@ -57,12 +62,18 @@ from app.models.acompanhamento_transfusional import (  # noqa: E402
 )
 from app.models.devolucao_descarte import Descarte, Devolucao  # noqa: E402
 from app.models.internacao import Internacao, StatusInternacao  # noqa: E402
+from app.models.mapa_trabalho_pretransfusional import MapaTrabalhoPreTransfusional  # noqa: E402
 from app.models.medico import Medico  # noqa: E402
 from app.models.paciente import Paciente  # noqa: E402
 from app.models.parametrizacao import Gravidade, Hemocomponente, MotivoDevolucao, TipoReacao  # noqa: E402
 from app.models.reacao_transfusional import ReacaoTransfusional, StatusReacao  # noqa: E402
 from app.models.role import Role, RoleCodigo  # noqa: E402
 from app.models.setor import Setor  # noqa: E402
+from app.models.solicitacao_hemocentro import (  # noqa: E402
+    SolicitacaoHemocentro,
+    SolicitacaoHemocentroItem,
+    StatusSolicitacaoHemocentro,
+)
 from app.models.solicitacao_transfusional import (  # noqa: E402
     PrioridadeSolicitacao,
     SolicitacaoBolsa,
@@ -132,6 +143,14 @@ def main() -> None:
             uf="BA",
             telefone="(71) 0000-0000",
             ativo=True,
+            # Unidade demo representa o perfil "completo" (recebe estoque do
+            # hemocentro, faz os testes e mantém bolsas) — os 3 módulos
+            # ligados, pra demonstrar tudo. Uma unidade que só transfunde
+            # desligaria modulo_estoque_ativo e modulo_solicitacao_hemocentro_ativo
+            # (ver MODULOS.md).
+            modulo_estoque_ativo=True,
+            modulo_mapa_trabalho_ativo=True,
+            modulo_solicitacao_hemocentro_ativo=True,
         )
         db.add(unidade)
         db.flush()
@@ -253,10 +272,11 @@ def main() -> None:
 
         # --- Estoque de bolsas (UnidadeHemocomponente) ---
         def nova_bolsa(numero, sigla, validade, status=StatusHemocomponente.DISPONIVEL, codigo_satelite=None,
-                       bolsa_mae_id=None, paciente_reservado_id=None, tipo_sanguineo="O+"):
+                       bolsa_mae_id=None, paciente_reservado_id=None, tipo_sanguineo="O+", numero_macarrao=None):
             return UnidadeHemocomponente(
                 hemocomponente_id=hemocomponentes[sigla].id,
                 numero_bolsa=numero,
+                numero_macarrao=numero_macarrao,
                 codigo_satelite=codigo_satelite,
                 bolsa_mae_id=bolsa_mae_id,
                 tipo_sanguineo=tipo_sanguineo,
@@ -268,7 +288,10 @@ def main() -> None:
             )
 
         bolsas_disponiveis = [
-            nova_bolsa("DEMO-CH-0001", "CH", HOJE + timedelta(days=30)),
+            # Nº macarrão (segmento de tubo pro reteste de confirmação) é
+            # opcional por bolsa — nem toda unidade registra separado do
+            # número da própria bolsa.
+            nova_bolsa("DEMO-CH-0001", "CH", HOJE + timedelta(days=30), numero_macarrao="MAC-0001"),
             nova_bolsa("DEMO-CH-0002", "CH", HOJE + timedelta(days=28), tipo_sanguineo="A+"),
             nova_bolsa("DEMO-PF-0001", "PF", HOJE + timedelta(days=300)),
             nova_bolsa("DEMO-CR-0001", "CR", HOJE + timedelta(days=300)),
@@ -349,12 +372,28 @@ def main() -> None:
         db.add(solicitacao_entregue)
         db.flush()
 
-        db.add(SolicitacaoBolsa(
+        bolsa_entregue = SolicitacaoBolsa(
             solicitacao_id=solicitacao_entregue.id, numero_bolsa="DEMO-CH-0006", tipo_sanguineo="O+",
             data_validade=HOJE + timedelta(days=15), volume_ml=280, prova_cruzada="COMPATIVEL",
             responsavel_testes="Biomédico Demonstração", folha_emitida_por=registrador_demo_id,
             folha_emitida_em=agora_menos(4), temperatura_transporte_c=4.0, recebido_por="Enfermagem UTI (fictício)",
             entregue_em=agora_menos(3), entregue_por=registrador_demo_id,
+        )
+        db.add(bolsa_entregue)
+        db.flush()
+
+        # Mapa de trabalho pré-transfusional (módulo opcional) — ficha
+        # técnica dos testes de laboratório para esta bolsa, arquivada
+        # junto com a solicitação.
+        db.add(MapaTrabalhoPreTransfusional(
+            solicitacao_bolsa_id=bolsa_entregue.id, unidade_hospitalar_id=unidade.id,
+            abo_rh_receptor_confirmado="O+", abo_rh_doador_confirmado="O+", metodo_abo_rh="GEL",
+            tecnica_prova_cruzada="GEL", lote_reagente_pai="PAI-DEMO-01",
+            lote_soro_anti_a="ANTIA-DEMO-01", lote_soro_anti_b="ANTIB-DEMO-01", lote_soro_anti_d="ANTID-DEMO-01",
+            validade_reagentes=HOJE + timedelta(days=90), temperatura_amostra_c=4.5,
+            tecnico_executante_id=registrador_demo_id, conferente_id=registrador_demo_id,
+            data_hora_inicio=agora_menos(4), data_hora_fim=agora_menos(4) + timedelta(minutes=25),
+            observacoes="Sem intercorrências na fase laboratorial (dado fictício).",
         ))
 
         acompanhamento = AcompanhamentoTransfusional(
@@ -388,6 +427,39 @@ def main() -> None:
             conclusao="Resolvido com antitérmico, sem necessidade de interromper a transfusão (dado fictício).",
             data_encerramento=agora_menos(1), unidade_hospitalar_id=unidade.id,
         ))
+
+        # --- Solicitações ao hemocentro de referência (módulo opcional) ---
+        sol_solicitada = SolicitacaoHemocentro(
+            hemocentro_nome="Hemocentro Estadual de Referência (dado fictício)",
+            status=StatusSolicitacaoHemocentro.SOLICITADA, data_solicitacao=agora_menos(6),
+            observacoes="Reposição de rotina (dado fictício).", unidade_hospitalar_id=unidade.id,
+        )
+        sol_enviada = SolicitacaoHemocentro(
+            hemocentro_nome="Hemocentro Estadual de Referência (dado fictício)",
+            status=StatusSolicitacaoHemocentro.ENVIADA, data_solicitacao=agora_menos(30), data_envio=agora_menos(28),
+            unidade_hospitalar_id=unidade.id,
+        )
+        sol_recebida = SolicitacaoHemocentro(
+            hemocentro_nome="Hemocentro Estadual de Referência (dado fictício)",
+            status=StatusSolicitacaoHemocentro.RECEBIDA, data_solicitacao=agora_menos(72),
+            data_envio=agora_menos(70), data_recebimento=agora_menos(48), unidade_hospitalar_id=unidade.id,
+        )
+        db.add_all([sol_solicitada, sol_enviada, sol_recebida])
+        db.flush()
+
+        db.add_all([
+            SolicitacaoHemocentroItem(solicitacao_hemocentro_id=sol_solicitada.id, hemocomponente_id=hemocomponentes["CH"].id, quantidade_solicitada=10),
+            SolicitacaoHemocentroItem(solicitacao_hemocentro_id=sol_enviada.id, hemocomponente_id=hemocomponentes["PF"].id, quantidade_solicitada=5),
+            SolicitacaoHemocentroItem(solicitacao_hemocentro_id=sol_recebida.id, hemocomponente_id=hemocomponentes["CH"].id, quantidade_solicitada=4),
+        ])
+
+        # A recebida já integra as bolsas chegadas ao estoque, marcadas com
+        # a solicitação como origem — mesmo efeito do endpoint
+        # POST /solicitacoes-hemocentro/{id}/receber.
+        db.add(nova_bolsa("DEMO-CH-0007", "CH", HOJE + timedelta(days=32), numero_macarrao="MAC-0007"))
+        db.flush()
+        ultima_bolsa = db.query(UnidadeHemocomponente).filter(UnidadeHemocomponente.numero_bolsa == "DEMO-CH-0007").one()
+        ultima_bolsa.solicitacao_hemocentro_id = sol_recebida.id
 
         db.commit()
 

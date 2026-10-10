@@ -9,6 +9,7 @@ from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.devolucao_descarte import Descarte, Devolucao  # noqa: F401
 from app.models.formulario_solicitacao import FormularioSolicitacao  # noqa: F401
 from app.models.internacao import Internacao, InternacaoSetorHistorico  # noqa: F401
+from app.models.mapa_trabalho_pretransfusional import MapaTrabalhoPreTransfusional  # noqa: F401
 from app.models.medico import Medico  # noqa: F401
 from app.models.paciente import Paciente  # noqa: F401
 from app.models.parametrizacao import (  # noqa: F401
@@ -21,6 +22,7 @@ from app.models.reacao_transfusional import ReacaoTransfusional  # noqa: F401
 from app.models.refresh_token import RefreshToken  # noqa: F401
 from app.models.role import Role  # noqa: F401
 from app.models.setor import Setor  # noqa: F401
+from app.models.solicitacao_hemocentro import SolicitacaoHemocentro, SolicitacaoHemocentroItem  # noqa: F401
 from app.models.solicitacao_transfusional import SolicitacaoBolsa, SolicitacaoTransfusional  # noqa: F401
 from app.models.unidade_hemocomponente import UnidadeHemocomponente  # noqa: F401
 from app.models.unidade_hospitalar import UnidadeHospitalar  # noqa: F401
@@ -37,6 +39,7 @@ __all__ = [
     "Hemocomponente",
     "Internacao",
     "InternacaoSetorHistorico",
+    "MapaTrabalhoPreTransfusional",
     "Medico",
     "MotivoDevolucao",
     "Paciente",
@@ -46,6 +49,8 @@ __all__ = [
     "Setor",
     "SinalVital",
     "SolicitacaoBolsa",
+    "SolicitacaoHemocentro",
+    "SolicitacaoHemocentroItem",
     "SolicitacaoTransfusional",
     "TipoReacao",
     "UnidadeHemocomponente",

@@ -13,6 +13,7 @@ interface Bolsa {
   id: string;
   hemocomponente_id: string;
   numero_bolsa: string;
+  numero_macarrao: string | null;
   codigo_satelite: string | null;
   bolsa_mae_id: string | null;
   tipo_sanguineo: string | null;
@@ -36,6 +37,7 @@ interface Hemocomponente {
 interface FormState {
   hemocomponente_id: string;
   numero_bolsa: string;
+  numero_macarrao: string;
   tipo_sanguineo: string;
   data_coleta: string;
   data_validade: string;
@@ -44,6 +46,7 @@ interface FormState {
 const FORM_VAZIO: FormState = {
   hemocomponente_id: "",
   numero_bolsa: "",
+  numero_macarrao: "",
   tipo_sanguineo: "",
   data_coleta: "",
   data_validade: "",
@@ -198,6 +201,7 @@ export function HemocomponentesPage() {
       await api.post("/hemocomponentes-bolsas", {
         hemocomponente_id: form.hemocomponente_id,
         numero_bolsa: form.numero_bolsa,
+        numero_macarrao: form.numero_macarrao || null,
         tipo_sanguineo: form.tipo_sanguineo || null,
         data_coleta: form.data_coleta || null,
         data_validade: form.data_validade,
@@ -326,6 +330,15 @@ export function HemocomponentesPage() {
                 maxLength={30}
                 value={form.numero_bolsa}
                 onChange={(e) => setForm({ ...form, numero_bolsa: e.target.value })}
+                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Nº Macarrão (segmento para reteste)</label>
+              <input
+                maxLength={30}
+                value={form.numero_macarrao}
+                onChange={(e) => setForm({ ...form, numero_macarrao: e.target.value })}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-hemo focus:outline-none"
               />
             </div>
@@ -513,6 +526,9 @@ export function HemocomponentesPage() {
                   <td className="px-4 py-3">
                     {b.numero_bolsa}
                     {b.codigo_satelite ? <span className="text-ink-muted"> / {b.codigo_satelite}</span> : null}
+                    {b.numero_macarrao && (
+                      <span className="block text-xs text-ink-muted">Macarrão: {b.numero_macarrao}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{nomeHemocomponente(b.hemocomponente_id)}</td>
                   <td className="px-4 py-3">{b.tipo_sanguineo ?? "—"}</td>

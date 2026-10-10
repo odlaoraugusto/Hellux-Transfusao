@@ -4,6 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.modulos import require_modulo_ativo
 from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
@@ -17,6 +18,7 @@ from app.services import unidade_hemocomponente_service as svc
 
 router = APIRouter(prefix="/hemocomponentes-bolsas", tags=["Hemocomponentes (Bolsas)"])
 _pode_escrever = require_permission("hemocomponentes_bolsas_gerenciar")
+_modulo_estoque = require_modulo_ativo("estoque")
 
 
 @router.get("", response_model=list[UnidadeHemocomponenteOut])
@@ -29,6 +31,7 @@ def pesquisar(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     ctx: TenantContext = Depends(require_unidade_resolvida),
+    _modulo=Depends(_modulo_estoque),
 ):
     return svc.search(
         db, ctx.unidade_hospitalar_id, status_filtro=status_filtro, hemocomponente_id=hemocomponente_id,
@@ -37,7 +40,12 @@ def pesquisar(
 
 
 @router.get("/{bolsa_id}", response_model=UnidadeHemocomponenteOut)
-def obter(bolsa_id: uuid.UUID, db: Session = Depends(get_db), ctx: TenantContext = Depends(require_unidade_resolvida)):
+def obter(
+    bolsa_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    ctx: TenantContext = Depends(require_unidade_resolvida),
+    _modulo=Depends(_modulo_estoque),
+):
     return svc.get_bolsa(db, bolsa_id, ctx.unidade_hospitalar_id)
 
 
@@ -47,6 +55,7 @@ def cadastrar(
     db: Session = Depends(get_db),
     ctx: TenantContext = Depends(require_unidade_resolvida),
     user=Depends(_pode_escrever),
+    _modulo=Depends(_modulo_estoque),
 ):
     return svc.create_bolsa(db, payload, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id)
 
@@ -58,6 +67,7 @@ def fracionar(
     db: Session = Depends(get_db),
     ctx: TenantContext = Depends(require_unidade_resolvida),
     user=Depends(_pode_escrever),
+    _modulo=Depends(_modulo_estoque),
 ):
     return svc.fracionar(
         db, bolsa_id, payload.quantidade_fracoes, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id
@@ -71,6 +81,7 @@ def reservar(
     db: Session = Depends(get_db),
     ctx: TenantContext = Depends(require_unidade_resolvida),
     user=Depends(_pode_escrever),
+    _modulo=Depends(_modulo_estoque),
 ):
     return svc.reservar(
         db, bolsa_id, payload.paciente_id, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id

@@ -1,10 +1,27 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, SlidersHorizontal } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { UnidadeHospitalar } from "@/types";
+
+const CAMPOS_MODULO = [
+  {
+    chave: "modulo_estoque_ativo" as const, rotulo: "Estoque de bolsas",
+    ajuda: "Controle de bolsas (entrada, fracionamento, reserva) — desligue se a unidade só transfunde, sem manter estoque próprio.",
+  },
+  {
+    chave: "modulo_mapa_trabalho_ativo" as const, rotulo: "Mapa de trabalho pré-transfusional",
+    ajuda: "Ficha técnica dos testes pré-transfusionais (lotes de reagente, técnica, dupla checagem), arquivada com a solicitação.",
+  },
+  {
+    chave: "modulo_solicitacao_hemocentro_ativo" as const, rotulo: "Solicitação ao hemocentro",
+    ajuda: "Pedido de reposição de bolsas ao hemocentro de referência, com acompanhamento até o recebimento. Exige o módulo de estoque.",
+  },
+];
+
+type ModulosForm = Record<(typeof CAMPOS_MODULO)[number]["chave"], boolean>;
 
 interface FormState {
   razao_social: string;
@@ -53,7 +70,7 @@ function mensagemErro(err: unknown, padrao: string): string {
 }
 
 export function UnidadeHospitalarPage() {
-  const { usuario } = useAuth();
+  const { usuario, unidadeAtivaId, recarregarUnidadeAtiva } = useAuth();
   const isAdminGlobal = usuario?.unidade_hospitalar_id === null;
 
   const [unidades, setUnidades] = useState<UnidadeHospitalar[]>([]);
@@ -65,6 +82,11 @@ export function UnidadeHospitalarPage() {
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
+
+  const [editandoModulos, setEditandoModulos] = useState<UnidadeHospitalar | null>(null);
+  const [formModulos, setFormModulos] = useState<ModulosForm | null>(null);
+  const [salvandoModulos, setSalvandoModulos] = useState(false);
+  const [erroModulos, setErroModulos] = useState<string | null>(null);
 
   function carregar() {
     setCarregando(true);
@@ -104,6 +126,39 @@ export function UnidadeHospitalarPage() {
     setFormAberto(false);
     setEditando(null);
     setErroForm(null);
+  }
+
+  function abrirModulos(u: UnidadeHospitalar) {
+    setEditandoModulos(u);
+    setFormModulos({
+      modulo_estoque_ativo: u.modulo_estoque_ativo,
+      modulo_mapa_trabalho_ativo: u.modulo_mapa_trabalho_ativo,
+      modulo_solicitacao_hemocentro_ativo: u.modulo_solicitacao_hemocentro_ativo,
+    });
+    setErroModulos(null);
+  }
+
+  function fecharModulos() {
+    setEditandoModulos(null);
+    setFormModulos(null);
+    setErroModulos(null);
+  }
+
+  async function salvarModulos(e: FormEvent) {
+    e.preventDefault();
+    if (!editandoModulos || !formModulos) return;
+    setErroModulos(null);
+    setSalvandoModulos(true);
+    try {
+      await api.patch(`/unidades-hospitalares/${editandoModulos.id}/modulos`, formModulos);
+      fecharModulos();
+      carregar();
+      if (unidadeAtivaId === editandoModulos.id) recarregarUnidadeAtiva();
+    } catch (err) {
+      setErroModulos(mensagemErro(err, "Não foi possível salvar os módulos."));
+    } finally {
+      setSalvandoModulos(false);
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -261,6 +316,44 @@ export function UnidadeHospitalarPage() {
         </Card>
       )}
 
+      {editandoModulos && formModulos && (
+        <Card>
+          <h2 className="mb-1 text-lg font-medium">Módulos — {editandoModulos.nome_fantasia}</h2>
+          <p className="mb-4 text-sm text-ink-muted">
+            Cada agência transfusional do SUS opera de um jeito diferente — ligue só o que esta unidade usa de
+            verdade. Veja <code>MODULOS.md</code> para orientação completa.
+          </p>
+          <form onSubmit={salvarModulos} className="space-y-4">
+            {CAMPOS_MODULO.map(({ chave, rotulo, ajuda }) => (
+              <div key={chave} className="flex items-start gap-3">
+                <input
+                  id={chave}
+                  type="checkbox"
+                  checked={formModulos[chave]}
+                  onChange={(e) => setFormModulos({ ...formModulos, [chave]: e.target.checked })}
+                  className="mt-1 h-4 w-4 rounded border-neutral-300"
+                />
+                <label htmlFor={chave}>
+                  <span className="block text-sm font-medium">{rotulo}</span>
+                  <span className="block text-xs text-ink-muted">{ajuda}</span>
+                </label>
+              </div>
+            ))}
+
+            {erroModulos && <p className="text-sm text-danger">{erroModulos}</p>}
+
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={salvandoModulos}>
+                {salvandoModulos ? "Salvando..." : "Salvar módulos"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={fecharModulos}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
       <Card className="p-0">
         <table className="w-full text-sm">
           <thead className="border-b border-neutral-200 text-left text-ink-muted">
@@ -311,13 +404,24 @@ export function UnidadeHospitalarPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => abrirEdicao(u)}
-                      className="inline-flex items-center gap-1 text-ink-muted hover:text-hemo"
-                      title="Editar"
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      {isAdminGlobal && (
+                        <button
+                          onClick={() => abrirModulos(u)}
+                          className="inline-flex items-center gap-1 text-ink-muted hover:text-hemo"
+                          title="Módulos ativos desta unidade"
+                        >
+                          <SlidersHorizontal size={16} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => abrirEdicao(u)}
+                        className="inline-flex items-center gap-1 text-ink-muted hover:text-hemo"
+                        title="Editar"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

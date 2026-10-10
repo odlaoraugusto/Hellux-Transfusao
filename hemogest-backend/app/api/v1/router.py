@@ -25,6 +25,7 @@ from app.api.v1.relatorios import router as relatorios_router
 from app.api.v1.roles import router as roles_router
 from app.api.v1.setores import router as setores_router
 from app.api.v1.solicitacoes import router as solicitacoes_router
+from app.api.v1.solicitacoes_hemocentro import router as solicitacoes_hemocentro_router
 from app.api.v1.unidades_hemocomponente import router as unidades_hemocomponente_router
 from app.api.v1.unidades_hospitalares import router as unidades_router
 from app.api.v1.usuarios import router as usuarios_router
@@ -45,6 +46,7 @@ api_router.include_router(pacientes_router)
 api_router.include_router(internacoes_router)
 api_router.include_router(unidades_hemocomponente_router)
 api_router.include_router(solicitacoes_router)
+api_router.include_router(solicitacoes_hemocentro_router)
 api_router.include_router(formularios_solicitacao_router)
 api_router.include_router(acompanhamentos_router)
 api_router.include_router(reacoes_router)

@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   History,
   ClipboardList,
+  Droplet,
+  Truck,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import clsx from "clsx";
@@ -19,24 +21,29 @@ import { useAuth } from "@/hooks/useAuth";
 import { podeGerenciarPermissoes, rotaPermitidaParaRole } from "@/lib/permissoes";
 import { INSTITUICAO_PRIMARIA, INSTITUICAO_SECUNDARIA } from "@/config/instituicao";
 import { LogoInstituicao } from "@/components/LogoInstituicao";
+import type { UnidadeHospitalar } from "@/types";
 
 // "Formulários recebidos" saiu do menu (2026-09-30, pedido do cliente) — o
 // formulário público já cria a Solicitação automaticamente, então a fila de
 // trabalho de verdade é só a de Solicitações; a tela em si continua
 // acessível por link direto (histórico do que foi digitado).
 //
-// "Hemocomponentes" (controle de bolsas/estoque) também saiu do menu — sem
-// uso real neste hospital por enquanto (2026-09-30, pedido do cliente: "por
-// enquanto não teremos estoque de bolsas"). A tela e as rotas continuam
-// existindo, só não aparecem no menu; reativar é só devolver a linha abaixo
-// (`{ to: "/hemocomponentes", label: "Hemocomponentes", icone: Droplet }`,
-// precisa importar `Droplet` de novo) e reconectar Acompanhamento à bolsa
-// de verdade se fizer sentido na hora.
+// "Hemocomponentes" (estoque) e "Solicitação Hemocentro" são módulos
+// opcionais (ver MODULOS.md) — cada unidade liga o que usa de
+// verdade; quem decide se aparecem no menu é `moduloAtivo` abaixo, não mais
+// uma ocultação fixa no código (2026-10-10, antes era "por enquanto não
+// teremos estoque de bolsas" via comentário — agora é configurável pelo
+// Admin Global em Unidade Hospitalar > Módulos).
 const ITENS = [
   { to: "/", label: "Dashboard", icone: LayoutDashboard },
   { to: "/unidade", label: "Unidade Hospitalar", icone: Building2 },
   { to: "/pacientes", label: "Pacientes", icone: Users },
   { to: "/solicitacoes", label: "Solicitações", icone: ClipboardList },
+  { to: "/hemocomponentes", label: "Hemocomponentes", icone: Droplet, modulo: "modulo_estoque_ativo" as const },
+  {
+    to: "/solicitacoes-hemocentro", label: "Solicitação Hemocentro", icone: Truck,
+    modulo: "modulo_solicitacao_hemocentro_ativo" as const,
+  },
   { to: "/acompanhamentos", label: "Acompanhamento", icone: Activity },
   { to: "/reacoes", label: "Reações Transfusionais", icone: AlertTriangle },
   { to: "/devolucoes-descartes", label: "Devoluções / Descartes", icone: Undo2 },
@@ -47,9 +54,16 @@ const ITENS = [
   { to: "/auditoria", label: "Auditoria", icone: History },
 ];
 
+function moduloAtivo(item: (typeof ITENS)[number], unidade: UnidadeHospitalar | null): boolean {
+  if (!("modulo" in item) || item.modulo === undefined) return true;
+  return unidade?.[item.modulo] ?? false;
+}
+
 export function Sidebar() {
-  const { usuario } = useAuth();
-  const base = ITENS.filter((item) => rotaPermitidaParaRole(usuario?.role_codigo, item.to));
+  const { usuario, unidadeAtiva } = useAuth();
+  const base = ITENS
+    .filter((item) => moduloAtivo(item, unidadeAtiva))
+    .filter((item) => rotaPermitidaParaRole(usuario?.role_codigo, item.to));
   const itens = podeGerenciarPermissoes(usuario?.role_codigo)
     ? [...base, { to: "/permissoes", label: "Permissões", icone: ShieldCheck }]
     : base;

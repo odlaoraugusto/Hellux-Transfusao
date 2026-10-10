@@ -31,6 +31,9 @@ PERMISSOES_CONFIGURAVEIS = (
     "reacoes_gerenciar",
     "devolucoes_descartes_gerenciar",
     "anexos_gerenciar",
+    # Módulo opcional (ver app.core.modulos e MODULOS.md) — só é
+    # relevante para unidades que ligaram modulo_solicitacao_hemocentro_ativo.
+    "solicitacoes_hemocentro_gerenciar",
 )
 
 

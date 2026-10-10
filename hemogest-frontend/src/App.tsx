@@ -16,6 +16,8 @@ import { FormulariosRecebidosPage } from "@/pages/FormulariosRecebidosPage";
 import { SolicitarTransfusaoPage } from "@/pages/SolicitarTransfusaoPage";
 import { ImpressaoFormularioPage } from "@/pages/ImpressaoFormularioPage";
 import { FolhaHemotransfusaoPage } from "@/pages/FolhaHemotransfusaoPage";
+import { MapaTrabalhoPreTransfusionalPage } from "@/pages/MapaTrabalhoPreTransfusionalPage";
+import { SolicitacaoHemocentroPage } from "@/pages/SolicitacaoHemocentroPage";
 import { ReacoesTransfusionaisPage } from "@/pages/ReacoesTransfusionaisPage";
 import { DevolucoesDescartesPage } from "@/pages/DevolucoesDescartesPage";
 import { RelatoriosPage } from "@/pages/RelatoriosPage";
@@ -62,6 +64,14 @@ export function App() {
               }
             />
             <Route
+              path="/solicitacoes/:id/bolsas/:bolsaId/mapa-trabalho"
+              element={
+                <ProtectedRoute>
+                  <MapaTrabalhoPreTransfusionalPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               element={
                 <ProtectedRoute>
                   <AppLayout />
@@ -73,6 +83,7 @@ export function App() {
               <Route path="/unidade" element={<UnidadeHospitalarPage />} />
               <Route path="/hemocomponentes" element={<HemocomponentesPage />} />
               <Route path="/solicitacoes" element={<SolicitacoesPage />} />
+              <Route path="/solicitacoes-hemocentro" element={<SolicitacaoHemocentroPage />} />
               <Route path="/formularios" element={<FormulariosRecebidosPage />} />
               <Route path="/acompanhamentos" element={<AcompanhamentosPage />} />
               <Route path="/reacoes" element={<ReacoesTransfusionaisPage />} />

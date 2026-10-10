@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class UnidadeHemocomponenteCreate(BaseModel):
     hemocomponente_id: uuid.UUID
     numero_bolsa: str = Field(min_length=1, max_length=30)
+    numero_macarrao: str | None = Field(default=None, max_length=30)
     tipo_sanguineo: str | None = Field(default=None, max_length=3)
     data_coleta: date | None = None
     data_validade: date
@@ -26,6 +27,7 @@ class UnidadeHemocomponenteOut(BaseModel):
     id: uuid.UUID
     hemocomponente_id: uuid.UUID
     numero_bolsa: str
+    numero_macarrao: str | None
     codigo_satelite: str | None
     bolsa_mae_id: uuid.UUID | None
     tipo_sanguineo: str | None
@@ -33,3 +35,4 @@ class UnidadeHemocomponenteOut(BaseModel):
     data_validade: date
     status: str
     paciente_reservado_id: uuid.UUID | None
+    solicitacao_hemocentro_id: uuid.UUID | None

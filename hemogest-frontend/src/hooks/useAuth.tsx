@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, clearTokens, isAutenticado, setTokens, setUnidadeAtiva } from "@/lib/api";
-import type { Usuario } from "@/types";
+import type { UnidadeHospitalar, Usuario } from "@/types";
 
 interface AuthContextValue {
   usuario: Usuario | null;
@@ -16,6 +16,13 @@ interface AuthContextValue {
    * por isso pode trocar — ver UnidadeSwitcher, na Navbar. */
   unidadeAtivaId: string | null;
   selecionarUnidadeAtiva: (unidadeId: string | null) => void;
+  /** Dados completos (inclusive módulos opcionais — ver MODULOS.md)
+   * da unidade ativa, pra Sidebar/telas decidirem o que mostrar. Nulo
+   * enquanto o Admin Global não escolheu nenhuma unidade. */
+  unidadeAtiva: UnidadeHospitalar | null;
+  /** Rebusca a unidade ativa — usado depois de editar os módulos, pra
+   * refletir sem precisar deslogar/trocar de unidade. */
+  recarregarUnidadeAtiva: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -24,11 +31,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [unidadeAtivaId, setUnidadeAtivaId] = useState<string | null>(null);
+  const [unidadeAtiva, setUnidadeAtivaObj] = useState<UnidadeHospitalar | null>(null);
+
+  const recarregarUnidadeAtiva = useCallback(async () => {
+    if (!unidadeAtivaId) {
+      setUnidadeAtivaObj(null);
+      return;
+    }
+    try {
+      const unidade = await api.get<UnidadeHospitalar>(`/unidades-hospitalares/${unidadeAtivaId}`);
+      setUnidadeAtivaObj(unidade);
+    } catch {
+      setUnidadeAtivaObj(null);
+    }
+  }, [unidadeAtivaId]);
 
   const selecionarUnidadeAtiva = useCallback((unidadeId: string | null) => {
     setUnidadeAtiva(unidadeId);
     setUnidadeAtivaId(unidadeId);
   }, []);
+
+  useEffect(() => {
+    recarregarUnidadeAtiva();
+  }, [recarregarUnidadeAtiva]);
 
   const hidratarUsuario = useCallback(async () => {
     if (!isAutenticado()) {
@@ -80,7 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ usuario, carregando, login, logout, unidadeAtivaId, selecionarUnidadeAtiva, refrescarUsuario }}
+      value={{
+        usuario, carregando, login, logout, unidadeAtivaId, selecionarUnidadeAtiva, refrescarUsuario,
+        unidadeAtiva, recarregarUnidadeAtiva,
+      }}
     >
       {children}
     </AuthContext.Provider>

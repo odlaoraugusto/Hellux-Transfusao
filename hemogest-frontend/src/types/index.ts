@@ -22,6 +22,11 @@ export interface UnidadeHospitalar {
   telefone: string | null;
   logo_object_name: string | null;
   ativo: boolean;
+  /** Módulos opcionais (ver MODULOS.md) — cada unidade liga o que usa
+   * de verdade, conforme seu fluxo real (com ou sem estoque próprio). */
+  modulo_estoque_ativo: boolean;
+  modulo_mapa_trabalho_ativo: boolean;
+  modulo_solicitacao_hemocentro_ativo: boolean;
 }
 
 export interface Role {

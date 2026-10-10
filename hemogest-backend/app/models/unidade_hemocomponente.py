@@ -36,9 +36,20 @@ class UnidadeHemocomponente(Base, BaseEntity, TenantMixin):
         UUID(as_uuid=True), ForeignKey("hemocomponente.id"), nullable=False, index=True
     )
     numero_bolsa: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    # Número do segmento ("macarrão") de tubo preso à bolsa, usado para
+    # reteste de confirmação — nem toda unidade registra isso separado do
+    # número da própria bolsa, por isso opcional (2026-10-10, pedido do
+    # cliente).
+    numero_macarrao: Mapped[str | None] = mapped_column(String(30), nullable=True)
     codigo_satelite: Mapped[str | None] = mapped_column(String(2), nullable=True, comment="A, B, C... ou None se bolsa-mãe")
     bolsa_mae_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("unidade_hemocomponente.id"), nullable=True, index=True
+    )
+    # Preenchido quando a bolsa chegou via uma Solicitação ao Hemocentro
+    # (módulo opcional) — rastreabilidade de origem, nulo para entrada
+    # manual direta (2026-10-10, pedido do cliente).
+    solicitacao_hemocentro_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("solicitacao_hemocentro.id"), nullable=True, index=True
     )
 
     tipo_sanguineo: Mapped[str | None] = mapped_column(String(3), nullable=True)

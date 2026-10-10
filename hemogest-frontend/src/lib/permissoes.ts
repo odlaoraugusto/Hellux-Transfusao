@@ -14,6 +14,10 @@ export const ACOES_CONFIGURAVEIS: { chave: string; rotulo: string; ajuda: string
   { chave: "reacoes_gerenciar", rotulo: "Reações transfusionais", ajuda: "Abrir, investigar e encerrar reações transfusionais." },
   { chave: "devolucoes_descartes_gerenciar", rotulo: "Devoluções e descartes", ajuda: "Registrar devolução ou descarte de bolsa." },
   { chave: "anexos_gerenciar", rotulo: "Anexos", ajuda: "Enviar e excluir arquivos anexados aos registros." },
+  {
+    chave: "solicitacoes_hemocentro_gerenciar", rotulo: "Solicitação ao Hemocentro",
+    ajuda: "Criar, enviar e registrar o recebimento de solicitações de reposição ao hemocentro (módulo opcional).",
+  },
 ];
 
 export const PERFIS_CONFIGURAVEIS: { codigo: "BIOMEDICO" | "TECNICO"; rotulo: string }[] = [

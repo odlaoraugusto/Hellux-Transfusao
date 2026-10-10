@@ -4,9 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.modulos import require_modulo_ativo
 from app.core.permissions import require_permission
 from app.core.tenant import TenantContext, require_unidade_resolvida
 from app.db.session import get_db
+from app.schemas.mapa_trabalho_pretransfusional import MapaTrabalhoOut, MapaTrabalhoUpsert
 from app.schemas.solicitacao_transfusional import (
     CancelarSolicitacaoRequest,
     EntregarBolsaRequest,
@@ -15,10 +17,12 @@ from app.schemas.solicitacao_transfusional import (
     SolicitacaoCreate,
     SolicitacaoOut,
 )
-from app.services import solicitacao_transfusional_service as svc
+from app.services import mapa_trabalho_service, solicitacao_transfusional_service as svc
 
 router = APIRouter(prefix="/solicitacoes", tags=["Solicitações Transfusionais"])
 _pode_escrever = require_permission("solicitacoes_gerenciar")
+_pode_escrever_bolsa = require_permission("hemocomponentes_bolsas_gerenciar")
+_modulo_mapa_trabalho = require_modulo_ativo("mapa_trabalho")
 
 
 @router.get("", response_model=list[SolicitacaoOut])
@@ -105,3 +109,31 @@ def entregar_bolsa(
     )
     saida = svc.montar_saida(db, [item], com_bolsas=True)[0]
     return {**saida, "bolsa_id": bolsa.id}
+
+
+@router.get("/{solicitacao_id}/bolsas/{bolsa_id}/mapa-trabalho", response_model=MapaTrabalhoOut | None)
+def obter_mapa_trabalho(
+    solicitacao_id: uuid.UUID,
+    bolsa_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    ctx: TenantContext = Depends(require_unidade_resolvida),
+    _modulo=Depends(_modulo_mapa_trabalho),
+):
+    return mapa_trabalho_service.get_mapa(
+        db, solicitacao_id, bolsa_id, unidade_hospitalar_id=ctx.unidade_hospitalar_id
+    )
+
+
+@router.put("/{solicitacao_id}/bolsas/{bolsa_id}/mapa-trabalho", response_model=MapaTrabalhoOut)
+def atualizar_mapa_trabalho(
+    solicitacao_id: uuid.UUID,
+    bolsa_id: uuid.UUID,
+    payload: MapaTrabalhoUpsert,
+    db: Session = Depends(get_db),
+    ctx: TenantContext = Depends(require_unidade_resolvida),
+    user=Depends(_pode_escrever_bolsa),
+    _modulo=Depends(_modulo_mapa_trabalho),
+):
+    return mapa_trabalho_service.upsert_mapa(
+        db, solicitacao_id, bolsa_id, payload, unidade_hospitalar_id=ctx.unidade_hospitalar_id, actor_id=user.id
+    )

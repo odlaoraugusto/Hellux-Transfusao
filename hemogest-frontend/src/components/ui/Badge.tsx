@@ -17,6 +17,10 @@ const CORES_POR_STATUS: Record<string, string> = {
   EM_ANDAMENTO: "bg-hemo-light/20 text-hemo-dark",
   FINALIZADO: "bg-success/10 text-success",
   INTERCORRENCIA: "bg-danger/10 text-danger",
+  SOLICITADA: "bg-warning/10 text-warning",
+  ENVIADA: "bg-hemo-light/20 text-hemo-dark",
+  RECEBIDA: "bg-success/10 text-success",
+  CANCELADA: "bg-neutral-200 text-neutral-600",
 };
 
 export function Badge({ status, children }: { status?: string; children: ReactNode }) {

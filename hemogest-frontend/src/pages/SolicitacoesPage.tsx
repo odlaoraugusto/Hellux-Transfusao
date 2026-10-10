@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BellRing, BellOff, Printer, X } from "lucide-react";
+import { BellRing, BellOff, FlaskConical, Printer, X } from "lucide-react";
 import clsx from "clsx";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -581,6 +581,7 @@ function Dado({ rotulo, children }: { rotulo: string; children: ReactNode }) {
 
 function DetalheSolicitacao({ id, onFechar, onAlterada }: { id: string; onFechar: () => void; onAlterada: () => void }) {
   const navigate = useNavigate();
+  const { unidadeAtiva } = useAuth();
   const [item, setItem] = useState<Solicitacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [processando, setProcessando] = useState(false);
@@ -702,13 +703,24 @@ function DetalheSolicitacao({ id, onFechar, onAlterada }: { id: string; onFechar
                     )}
                   </td>
                   <td className="py-1.5">
-                    <Link
-                      to={`/solicitacoes/${item.id}/bolsas/${b.id}/folha`}
-                      className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink hover:underline"
-                      title="Reimprimir a Folha de Hemotransfusão desta bolsa"
-                    >
-                      <Printer size={13} />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/solicitacoes/${item.id}/bolsas/${b.id}/folha`}
+                        className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink hover:underline"
+                        title="Reimprimir a Folha de Hemotransfusão desta bolsa"
+                      >
+                        <Printer size={13} />
+                      </Link>
+                      {unidadeAtiva?.modulo_mapa_trabalho_ativo && (
+                        <Link
+                          to={`/solicitacoes/${item.id}/bolsas/${b.id}/mapa-trabalho`}
+                          className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink hover:underline"
+                          title="Mapa de trabalho pré-transfusional desta bolsa"
+                        >
+                          <FlaskConical size={13} />
+                        </Link>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

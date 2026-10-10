@@ -8,6 +8,7 @@ from app.core.tenant import TenantContext, get_tenant_context
 from app.db.session import get_db
 from app.models.role import RoleCodigo
 from app.schemas.unidade_hospitalar import (
+    ModulosUpdate,
     UnidadeHospitalarCreate,
     UnidadeHospitalarLogoOut,
     UnidadeHospitalarOut,
@@ -49,6 +50,19 @@ def atualizar(
     if not ctx.is_admin_global and ctx.unidade_hospitalar_id != unidade_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Sem acesso a esta unidade.")
     return svc.update_unidade(db, unidade_id, payload, actor_id=user.id)
+
+
+@router.patch("/{unidade_id}/modulos", response_model=UnidadeHospitalarOut)
+def atualizar_modulos(
+    unidade_id: uuid.UUID,
+    payload: ModulosUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(_apenas_admin_global),
+):
+    # Decisão de implantação/TI, não assistencial — por isso restrito ao
+    # Admin Global, diferente da edição normal (_pode_editar permite
+    # Supervisor/RT da própria unidade). Ver MODULOS.md.
+    return svc.update_modulos(db, unidade_id, payload, actor_id=user.id)
 
 
 @router.post("/{unidade_id}/logo", response_model=UnidadeHospitalarLogoOut)

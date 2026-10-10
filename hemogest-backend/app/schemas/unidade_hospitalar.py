@@ -39,7 +39,20 @@ class UnidadeHospitalarOut(BaseModel):
     telefone: str | None
     logo_object_name: str | None
     ativo: bool
+    modulo_estoque_ativo: bool
+    modulo_mapa_trabalho_ativo: bool
+    modulo_solicitacao_hemocentro_ativo: bool
 
 
 class UnidadeHospitalarLogoOut(BaseModel):
     logo_url: str
+
+
+class ModulosUpdate(BaseModel):
+    """Só o Admin Global edita (ver require_roles() em
+    app.api.v1.unidades_hospitalares) — é decisão de implantação/TI, não do
+    dia a dia assistencial da unidade. Ver MODULOS.md."""
+
+    modulo_estoque_ativo: bool | None = None
+    modulo_mapa_trabalho_ativo: bool | None = None
+    modulo_solicitacao_hemocentro_ativo: bool | None = None
